@@ -1,18 +1,23 @@
-name: Android CI — Build & Unit/Robolectric Tests
+name: Android CI — Build, Lint & Unit/Robolectric Tests
 
 on:
   push:
-    branches: [ "main", "master" ]
+    branches:
+      - main
+      - master
+      - develop
   pull_request:
-    branches: [ "main", "master" ]
-  workflow_dispatch:
+    branches:
+      - main
+      - master
+      - develop
 
 permissions:
   contents: read
 
 jobs:
   build-and-test:
-    name: Compile APK & Run Robolectric Test Suite
+    name: Assemble Debug, Lint & Run JVM/Robolectric Suite
     runs-on: ubuntu-latest
 
     steps:
@@ -25,16 +30,18 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
 
-      - name: Setup Gradle with Caching
+      - name: Setup Gradle 8.11.1
         uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
 
-      - name: Prepare Default .env from .env.example
+      - name: Prepare Safe .env from .env.example
         run: |
           if [ ! -f .env ]; then
             cp .env.example .env
           fi
 
-      - name: Generate Debug Keystore if Missing
+      - name: Ensure Debug Keystore Exists for CI Build
         run: |
           if [ ! -f debug.keystore ]; then
             keytool -genkeypair -v \
@@ -51,14 +58,17 @@ jobs:
       - name: Run Unit & Robolectric Tests
         run: gradle :app:testDebugUnitTest --stacktrace
 
+      - name: Run Android Lint
+        run: gradle :app:lintDebug --stacktrace
+
       - name: Assemble Debug APK
         run: gradle :app:assembleDebug --stacktrace
 
-      - name: Upload Unit Test Report
+      - name: Upload Test Reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: salahmate-unit-test-report
+          name: unit-test-reports
           path: app/build/reports/tests/testDebugUnitTest/
 
       - name: Upload Debug APK Artifact

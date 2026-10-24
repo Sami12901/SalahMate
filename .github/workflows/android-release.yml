@@ -2,12 +2,15 @@ name: Android Release — Build APK/AAB & Publish GitHub Release
 
 on:
   push:
+    branches:
+      - main
+      - master
     tags:
       - 'v*.*.*'
   workflow_dispatch:
     inputs:
       release_tag:
-        description: 'Version tag for manual release (e.g., v1.0.0)'
+        description: 'Version tag for release (e.g., v1.0.0)'
         required: true
         default: 'v1.0.0'
 
@@ -29,11 +32,16 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
 
-      - name: Setup Gradle
+      - name: Setup Gradle 8.11.1
         uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
 
       - name: Prepare Safe .env from .env.example
-        run: cp .env.example .env
+        run: |
+          if [ ! -f .env ]; then
+            cp .env.example .env
+          fi
 
       - name: Ensure Debug & Release Keystores Exist
         env:
@@ -66,6 +74,18 @@ jobs:
               -dname "CN=SalahMate Release,O=SalahMate,C=BD"
           fi
 
+      - name: Determine Release Tag
+        id: meta
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            TAG="${GITHUB_REF_NAME}"
+          elif [[ -n "${{ inputs.release_tag }}" ]]; then
+            TAG="${{ inputs.release_tag }}"
+          else
+            TAG="v1.0.0"
+          fi
+          echo "release_tag=${TAG}" >> "$GITHUB_OUTPUT"
+
       - name: Run Verification Tests Before Release
         run: gradle :app:testDebugUnitTest --stacktrace
 
@@ -78,7 +98,7 @@ jobs:
 
       - name: Stage Release Artifacts & Compute SHA-256 Checksums
         run: |
-          VERSION_NAME="${GITHUB_REF_NAME:-${{ inputs.release_tag }}}"
+          VERSION_NAME="${{ steps.meta.outputs.release_tag }}"
           mkdir -p release-dist
           cp app/build/outputs/apk/debug/app-debug.apk "release-dist/SalahMate-${VERSION_NAME}-debug.apk"
           if [ -f app/build/outputs/apk/release/app-release.apk ]; then
@@ -97,10 +117,11 @@ jobs:
           name: salahmate-release-bundle
           path: release-dist/*
 
-      - name: Create GitHub Release
-        if: startsWith(github.ref, 'refs/tags/v')
+      - name: Create or Update GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ steps.meta.outputs.release_tag }}
+          name: "SalahMate ${{ steps.meta.outputs.release_tag }} — Production Release"
           body_path: RELEASE_NOTES.md
           files: |
             release-dist/*

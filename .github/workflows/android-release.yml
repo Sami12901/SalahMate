@@ -32,10 +32,18 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
 
-      - name: Setup Gradle 8.11.1
+      - name: Accept Android SDK Licenses
+        run: |
+          if [ -n "${ANDROID_HOME}" ] && [ -x "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" ]; then
+            yes | "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+          elif [ -n "${ANDROID_SDK_ROOT}" ] && [ -x "${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager" ]; then
+            yes | "${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+          fi
+
+      - name: Setup Gradle 9.3.1
         uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: '8.11.1'
+          gradle-version: '9.3.1'
 
       - name: Prepare Safe .env from .env.example
         run: |
@@ -46,8 +54,6 @@ jobs:
       - name: Ensure Debug & Release Keystores Exist
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
-          STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           if [ ! -f debug.keystore ]; then
             keytool -genkeypair -v \
@@ -60,6 +66,7 @@ jobs:
               -validity 10000 \
               -dname "CN=Android Debug,O=Android,C=US"
           fi
+          rm -f my-upload-key.jks
           if [ -n "$KEYSTORE_BASE64" ]; then
             echo "$KEYSTORE_BASE64" | base64 --decode > my-upload-key.jks
           else
@@ -86,15 +93,12 @@ jobs:
           fi
           echo "release_tag=${TAG}" >> "$GITHUB_OUTPUT"
 
-      - name: Run Verification Tests Before Release
-        run: gradle :app:testDebugUnitTest --stacktrace
-
-      - name: Build Debug & Release APKs and App Bundle (AAB)
+      - name: Run Verification Tests & Build Debug/Release APKs and App Bundle (AAB)
         env:
           STORE_PASSWORD: ${{ secrets.STORE_PASSWORD != '' && secrets.STORE_PASSWORD || 'androidrelease' }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD != '' && secrets.KEY_PASSWORD || 'androidrelease' }}
         run: |
-          gradle :app:assembleDebug :app:assembleRelease :app:bundleRelease --stacktrace
+          gradle :app:testDebugUnitTest :app:assembleDebug :app:assembleRelease :app:bundleRelease --no-configuration-cache --stacktrace
 
       - name: Stage Release Artifacts & Compute SHA-256 Checksums
         run: |
@@ -119,6 +123,8 @@ jobs:
 
       - name: Create or Update GitHub Release
         uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ steps.meta.outputs.release_tag }}
           name: "SalahMate ${{ steps.meta.outputs.release_tag }} — Production Release"

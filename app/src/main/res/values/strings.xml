@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">SalahMate</string>
+    <string name="widget_name_compact">SalahMate Prayer Times</string>
+    <string name="widget_description">Displays current and next prayer time, Hijri date, and today\'s 5-prayer schedule.</string>
+    <string name="notification_channel_name">Prayer Time Reminders</string>
+    <string name="notification_channel_desc">Notifications and optional Adhan alerts for the five daily prayers.</string>
+    <string name="hifz_notification_channel_name">Hifz &amp; Daily Revision</string>
+    <string name="hifz_notification_channel_desc">Reminders for Quran memorization and daily revision goals.</string>
+</resources>

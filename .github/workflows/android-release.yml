@@ -1,0 +1,108 @@
+name: Android Release — Build APK/AAB & Publish GitHub Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Version tag for manual release (e.g., v1.0.0)'
+        required: true
+        default: 'v1.0.0'
+
+permissions:
+  contents: write
+
+jobs:
+  publish-release:
+    name: Package APK/AAB & Publish GitHub Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Prepare Safe .env from .env.example
+        run: cp .env.example .env
+
+      - name: Ensure Debug & Release Keystores Exist
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          if [ ! -f debug.keystore ]; then
+            keytool -genkeypair -v \
+              -keystore debug.keystore \
+              -storepass android \
+              -alias androiddebugkey \
+              -keypass android \
+              -keyalg RSA \
+              -keysize 2048 \
+              -validity 10000 \
+              -dname "CN=Android Debug,O=Android,C=US"
+          fi
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | base64 --decode > my-upload-key.jks
+          else
+            keytool -genkeypair -v \
+              -keystore my-upload-key.jks \
+              -storepass androidrelease \
+              -alias upload \
+              -keypass androidrelease \
+              -keyalg RSA \
+              -keysize 2048 \
+              -validity 10000 \
+              -dname "CN=SalahMate Release,O=SalahMate,C=BD"
+          fi
+
+      - name: Run Verification Tests Before Release
+        run: gradle :app:testDebugUnitTest --stacktrace
+
+      - name: Build Debug & Release APKs and App Bundle (AAB)
+        env:
+          STORE_PASSWORD: ${{ secrets.STORE_PASSWORD != '' && secrets.STORE_PASSWORD || 'androidrelease' }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD != '' && secrets.KEY_PASSWORD || 'androidrelease' }}
+        run: |
+          gradle :app:assembleDebug :app:assembleRelease :app:bundleRelease --stacktrace
+
+      - name: Stage Release Artifacts & Compute SHA-256 Checksums
+        run: |
+          VERSION_NAME="${GITHUB_REF_NAME:-${{ inputs.release_tag }}}"
+          mkdir -p release-dist
+          cp app/build/outputs/apk/debug/app-debug.apk "release-dist/SalahMate-${VERSION_NAME}-debug.apk"
+          if [ -f app/build/outputs/apk/release/app-release.apk ]; then
+            cp app/build/outputs/apk/release/app-release.apk "release-dist/SalahMate-${VERSION_NAME}-release.apk"
+          fi
+          if [ -f app/build/outputs/bundle/release/app-release.aab ]; then
+            cp app/build/outputs/bundle/release/app-release.aab "release-dist/SalahMate-${VERSION_NAME}.aab"
+          fi
+          cd release-dist
+          sha256sum * > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
+      - name: Upload Release Artifacts to Workflow Run
+        uses: actions/upload-artifact@v4
+        with:
+          name: salahmate-release-bundle
+          path: release-dist/*
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          body_path: RELEASE_NOTES.md
+          files: |
+            release-dist/*
+          draft: false
+          prerelease: false

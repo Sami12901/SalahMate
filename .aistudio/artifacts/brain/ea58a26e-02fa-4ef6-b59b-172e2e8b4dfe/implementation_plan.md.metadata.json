@@ -1,0 +1,6 @@
+{
+  "summary":  "Implementation plan for preparing SalahMate for public GitHub publishing and automated releases, including an expanded GitHub-grade README, MIT LICENSE, CHANGELOG and v1.0.0 Release Notes, CONTRIBUTING, CODE_OF_CONDUCT, SECURITY policy, GitHub Issue and PR templates, ProGuard/R8 release rules, and GitHub Actions CI + APK/AAB Release workflows.",
+  "updatedAt":  "2026-10-24T17:33:49.494287413Z",
+  "requestFeedback":  true,
+  "userFacing":  true
+}

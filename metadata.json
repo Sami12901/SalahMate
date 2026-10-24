@@ -1,0 +1,6 @@
+{
+  "name": "SalahMate",
+  "description": "Offline-first Islamic companion providing local and online prayer times, full 114-Surah Quran reader with Bengali and English translations and audio recitation, Hifz tracker, Hadith, Dua, Qibla compass, Tasbih, Ramadan calendar, Hijri calendar, and Zakat calculator.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,36 @@
+MIT License
+
+Copyright (c) 2026 SalahMate Contributors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+-------------------------------------------------------------------------------
+NOTICE ON RELIGIOUS TEXTS, TRANSLATIONS, AND AUDIO RECITATIONS
+-------------------------------------------------------------------------------
+The MIT License above applies to the SalahMate application source code, UI
+layouts, and custom vector assets.
+
+Religious texts, translations, and audio recitations accessed or bundled within
+the application—including the Tanzil Uthmani Quranic Arabic text, Muhiuddin Khan
+Bengali translation, Saheeh International English translation, Mishary Rashid
+Alafasy audio recitation (via AlQuran.cloud), and canonical Hadith/Dua texts—are
+governed by their respective terms and attribution requirements documented in
+CONTENT_LICENSES.md. Forks and redistributions must preserve the verbatim
+integrity of the Arabic Quranic text and maintain clear translator and source
+attribution.

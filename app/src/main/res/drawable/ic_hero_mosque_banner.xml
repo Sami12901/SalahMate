@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="360dp"
+    android:height="160dp"
+    android:viewportWidth="360"
+    android:viewportHeight="160">
+    <!-- Deep Sapphire Twilight Sky -->
+    <path android:pathData="M0,0h360v160h-360z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="0"
+                android:startY="0"
+                android:endX="360"
+                android:endY="160"
+                android:type="linear">
+                <item android:color="#082444" android:offset="0.0" />
+                <item android:color="#0F4C81" android:offset="0.6" />
+                <item android:color="#1D639E" android:offset="1.0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <!-- Subtle Silver Geometric Star Lattice Rings -->
+    <path
+        android:fillColor="#1ACBD5E1"
+        android:pathData="M295,46 L305,56 L320,56 L320,71 L330,81 L320,91 L320,106 L305,106 L295,116 L285,106 L270,106 L270,91 L260,81 L270,71 L270,56 L285,56 Z" />
+    <!-- Alabaster Crescent Moon -->
+    <path
+        android:fillColor="#E2E8F0"
+        android:pathData="M300,26 C291,26 284,33 284,42 C284,51 291,58 300,58 C304,58 307,57 310,54 C305,55 300,54 297,50 C292,45 292,37 297,32 C300,29 304,28 308,29 C305,27 303,26 300,26 Z" />
+    <!-- Distant Mosque Silhouette Layer -->
+    <path
+        android:fillColor="#33081C34"
+        android:pathData="M0,160 L0,128 L35,128 L35,95 L38,85 L41,95 L41,128 L80,128 C85,102 115,102 120,128 L175,128 C185,90 235,90 245,128 L280,128 L280,88 L284,76 L288,88 L288,128 L360,128 L360,160 Z" />
+    <!-- Foreground Architectural Domes & Minarets -->
+    <path
+        android:fillColor="#55061527"
+        android:pathData="M0,160 L0,138 L55,138 C62,114 98,114 105,138 L138,138 L138,96 L142,82 L146,96 L146,138 L168,138 C178,98 228,98 238,138 L315,138 L315,104 L318,92 L321,104 L321,138 L360,138 L360,160 Z" />
+</vector>

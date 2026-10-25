@@ -19,6 +19,7 @@ import com.example.core.database.UserDataBackupManager
 import com.example.core.network.NetworkModule
 import com.example.core.notifications.NotificationDiagnostics
 import com.example.core.notifications.PrayerNotificationScheduler
+import com.example.core.notifications.ScheduledPrayerAlarmInfo
 import com.example.core.preferences.AsrJuristicSchool
 import com.example.core.preferences.CalculationMethodOption
 import com.example.core.preferences.NotificationSoundMode
@@ -123,6 +124,11 @@ class SalahMateViewModel(application: Application) : AndroidViewModel(applicatio
     )
     val notificationDiagnostics: StateFlow<NotificationDiagnostics> = _notificationDiagnostics.asStateFlow()
 
+    private val _scheduledAlarmsTable = MutableStateFlow(
+        PrayerNotificationScheduler.computeScheduledAlarmsTable(UserPreferencesState())
+    )
+    val scheduledAlarmsTable: StateFlow<List<ScheduledPrayerAlarmInfo>> = _scheduledAlarmsTable.asStateFlow()
+
     // --- Quran Reader State ---
     private val _activeSurahLoadState = MutableStateFlow<SurahLoadResult>(SurahLoadResult.Loading)
     val activeSurahLoadState: StateFlow<SurahLoadResult> = _activeSurahLoadState.asStateFlow()
@@ -179,6 +185,7 @@ class SalahMateViewModel(application: Application) : AndroidViewModel(applicatio
                 _todaySchedule.value = schedule
                 _nextPrayerCountdown.value = LocalAdhanCalculator.computeNextPrayerStatus(schedule, prefs)
                 PrayerNotificationScheduler.scheduleDailyPrayerAlarms(appContext, prefs)
+                _scheduledAlarmsTable.value = PrayerNotificationScheduler.computeScheduledAlarmsTable(prefs)
                 _notificationDiagnostics.value = PrayerNotificationScheduler.getDiagnostics(appContext)
                 SalahMateWidgetProvider.updateAllWidgets(appContext)
             }
@@ -360,8 +367,27 @@ class SalahMateViewModel(application: Application) : AndroidViewModel(applicatio
     ) {
         viewModelScope.launch {
             prefsRepo.updateNotificationSettings(fajr, dhuhr, asr, maghrib, isha, advanceMinutes, soundMode)
+            val updatedPrefs = prefsRepo.preferencesFlow.first()
+            PrayerNotificationScheduler.scheduleDailyPrayerAlarms(appContext, updatedPrefs)
+            _scheduledAlarmsTable.value = PrayerNotificationScheduler.computeScheduledAlarmsTable(updatedPrefs)
             _notificationDiagnostics.value = PrayerNotificationScheduler.getDiagnostics(appContext)
         }
+    }
+
+    fun syncAndVerifyPrayerAlarmsNow() {
+        viewModelScope.launch {
+            val prefs = preferencesState.value
+            PrayerNotificationScheduler.scheduleDailyPrayerAlarms(appContext, prefs)
+            _scheduledAlarmsTable.value = PrayerNotificationScheduler.computeScheduledAlarmsTable(prefs)
+            _notificationDiagnostics.value = PrayerNotificationScheduler.getDiagnostics(appContext)
+            showStatusMessage("Offline prayer alarms (AlarmManager + WorkManager) synced for ${prefs.cityName}.")
+        }
+    }
+
+    fun refreshNotificationDiagnostics() {
+        val prefs = preferencesState.value
+        _scheduledAlarmsTable.value = PrayerNotificationScheduler.computeScheduledAlarmsTable(prefs)
+        _notificationDiagnostics.value = PrayerNotificationScheduler.getDiagnostics(appContext)
     }
 
     fun triggerTestPrayerNotification() {
@@ -373,7 +399,8 @@ class SalahMateViewModel(application: Application) : AndroidViewModel(applicatio
             prayerTimeFormatted = next.nextPrayerTimeFormatted,
             soundMode = prefs.notificationSoundMode,
             isAdvanceReminder = false,
-            isTestPreview = true
+            isTestPreview = true,
+            prayerType = next.nextPrayer
         )
         _notificationDiagnostics.value = PrayerNotificationScheduler.getDiagnostics(appContext)
         showStatusMessage("Test notification sent (${prefs.notificationSoundMode.labelEn}).")

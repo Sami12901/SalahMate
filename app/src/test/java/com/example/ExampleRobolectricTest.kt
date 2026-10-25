@@ -131,4 +131,35 @@ class ExampleRobolectricTest {
         val bnStrings = BilingualStrings(isBn = true)
         assertEquals("সালাহমেট", bnStrings.appTitle)
     }
+
+    @Test
+    fun `offline prayer notification scheduler computes advance and exact waqt alarms for all 5 prayers`() {
+        val prefs = com.example.core.preferences.UserPreferencesState(
+            notifyFajr = true,
+            notifyDhuhr = true,
+            notifyAsr = true,
+            notifyMaghrib = true,
+            notifyIsha = true,
+            advanceReminderMinutes = 15
+        )
+        val table = com.example.core.notifications.PrayerNotificationScheduler.computeScheduledAlarmsTable(prefs)
+        assertEquals(5, table.size)
+        table.forEach { row ->
+            assertTrue(row.isEnabled)
+            assertTrue(row.waqtTriggerMillis > 0L)
+            assertEquals(15, row.advanceMinutes)
+            assertTrue((row.advanceTriggerMillis ?: 0L) > 0L)
+        }
+
+        com.example.core.notifications.PrayerNotificationScheduler.scheduleDailyPrayerAlarms(
+            context = context,
+            prefs = prefs,
+            enqueueWorkManager = false
+        )
+        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as android.app.AlarmManager
+        val shadowAlarmManager = org.robolectric.Shadows.shadowOf(alarmManager)
+        // 5 exact waqt alarms + 5 advance reminder alarms = 10 scheduled alarms
+        assertEquals(10, shadowAlarmManager.scheduledAlarms.size)
+    }
 }
+

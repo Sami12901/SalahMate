@@ -1,7 +1,10 @@
 package com.example.feature.home
 
 import android.Manifest
+import android.content.Intent
+import android.net.Uri
 import android.os.Build
+import android.provider.Settings
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -78,6 +81,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -100,6 +104,9 @@ import com.example.ui.components.GlassmorphicContainerCard
 import com.example.ui.components.IslamicGeometricBackground
 import com.example.ui.components.PrayerProgressArcGauge
 import com.example.ui.components.skyGradientForPrayer
+import com.example.ui.theme.CautionAmber
+import com.example.ui.theme.IlluminatedGold
+import com.example.ui.theme.IlluminatedGoldLight
 import com.example.ui.theme.VerifiedEmerald
 import java.util.Locale
 
@@ -1068,9 +1075,11 @@ fun PrayerEngineAndNotificationsScreen(
     viewModel: SalahMateViewModel,
     strings: BilingualStrings
 ) {
+    val context = LocalContext.current
     val prefs by viewModel.preferencesState.collectAsStateWithLifecycle()
     val schedule by viewModel.todaySchedule.collectAsStateWithLifecycle()
     val diagnostics by viewModel.notificationDiagnostics.collectAsStateWithLifecycle()
+    val scheduledAlarms by viewModel.scheduledAlarmsTable.collectAsStateWithLifecycle()
 
     var fajrOffset by remember(prefs.fajrOffsetMin) { mutableIntStateOf(prefs.fajrOffsetMin) }
     var sunriseOffset by remember(prefs.sunriseOffsetMin) { mutableIntStateOf(prefs.sunriseOffsetMin) }
@@ -1083,6 +1092,7 @@ fun PrayerEngineAndNotificationsScreen(
     val notifPermLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { _ ->
+        viewModel.refreshNotificationDiagnostics()
         viewModel.triggerTestPrayerNotification()
     }
 
@@ -1237,7 +1247,7 @@ fun PrayerEngineAndNotificationsScreen(
             }
         }
 
-        // 3. Opt-In Prayer Notifications & Adhan Card
+        // 3. Opt-In Prayer Notifications & Adhan Card (AlarmManager + WorkManager)
         item {
             OutlinedCard(
                 shape = RoundedCornerShape(20.dp),
@@ -1245,21 +1255,97 @@ fun PrayerEngineAndNotificationsScreen(
             ) {
                 Column(
                     modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Text(
                         text = strings.tr("Prayer Notifications & Adhan Alerts", "নামাজের নোটিফিকেশন ও আযান অ্যালার্ট"),
-                        style = MaterialTheme.typography.titleLarge
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
                     )
+
+                    // Engine Badges Row (AlarmManager + WorkManager)
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .clip(CircleShape)
+                                .background(
+                                    if (diagnostics.canScheduleExactAlarms) VerifiedEmerald.copy(alpha = 0.16f)
+                                    else CautionAmber.copy(alpha = 0.18f)
+                                )
+                                .padding(horizontal = 12.dp, vertical = 6.dp)
+                        ) {
+                            Text(
+                                text = if (diagnostics.canScheduleExactAlarms)
+                                    strings.tr("✓ AlarmManager Exact Mode", "✓ সঠিক সময়ে অ্যালার্ম সক্রিয়")
+                                else
+                                    strings.tr("⚠ AlarmManager Windowed Mode", "⚠ উইন্ডোড অ্যালার্ম মোড"),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = if (diagnostics.canScheduleExactAlarms) VerifiedEmerald else CautionAmber,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        Box(
+                            modifier = Modifier
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.primaryContainer)
+                                .padding(horizontal = 12.dp, vertical = 6.dp)
+                        ) {
+                            Text(
+                                text = strings.tr("✓ WorkManager 6h Offline Sync", "✓ ওয়ার্কম্যানেজার অফলাইন সিঙ্ক"),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+
                     Card(
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text(
-                            text = if (strings.isBn) diagnostics.schedulingModeDescriptionBn else diagnostics.schedulingModeDescriptionEn,
-                            style = MaterialTheme.typography.bodyMedium,
-                            modifier = Modifier.padding(12.dp)
-                        )
+                        Column(
+                            modifier = Modifier.padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                text = if (strings.isBn) diagnostics.schedulingModeDescriptionBn else diagnostics.schedulingModeDescriptionEn,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+
+                            // System Permission & Exact Alarm Shortcut
+                            if (!diagnostics.hasNotificationPermission || !diagnostics.canScheduleExactAlarms) {
+                                OutlinedButton(
+                                    onClick = {
+                                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !diagnostics.hasNotificationPermission) {
+                                            notifPermLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                                        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !diagnostics.canScheduleExactAlarms) {
+                                            runCatching {
+                                                val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply {
+                                                    data = Uri.parse("package:${context.packageName}")
+                                                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                                                }
+                                                context.startActivity(intent)
+                                            }
+                                        }
+                                    },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .testTag("exact_alarm_permission_shortcut")
+                                ) {
+                                    Icon(Icons.Default.Settings, contentDescription = null)
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = if (!diagnostics.hasNotificationPermission)
+                                            strings.tr("Grant Notification Permission", "নোটিফিকেশন অনুমতি দিন")
+                                        else
+                                            strings.tr("Allow Exact Alarms in System Settings", "সিস্টেম সেটিংসে Exact Alarm সক্রিয় করুন")
+                                    )
+                                }
+                            }
+                        }
                     }
 
                     PrayerToggleRow(strings.fajr, prefs.notifyFajr) {
@@ -1299,8 +1385,16 @@ fun PrayerEngineAndNotificationsScreen(
                     }
 
                     Text(
-                        text = strings.tr("Advance Reminder Before Prayer", "নামাজের পূর্বে অগ্রিম রিমাইন্ডার"),
+                        text = strings.tr("Advance Reminder + Exact Waqt Alert", "অগ্রিম রিমাইন্ডার + সঠিক ওয়াক্ত অ্যালার্ট"),
                         style = MaterialTheme.typography.titleMedium
+                    )
+                    Text(
+                        text = strings.tr(
+                            "When an advance reminder is selected, SalahMate fires both the pre-prayer reminder and the exact on-time waqt alert.",
+                            "অগ্রিম সময় নির্বাচন করলে নামাজের পূর্বে রিমাইন্ডার এবং সঠিক ওয়াক্তে—উভয় সময়েই নোটিফিকেশন প্রদান করা হবে।"
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         listOf(0, 5, 10, 15, 30).forEach { mins ->
@@ -1316,6 +1410,110 @@ fun PrayerEngineAndNotificationsScreen(
                                 label = { Text(if (mins == 0) "On Time" else "$mins min before") }
                             )
                         }
+                    }
+
+                    HorizontalDivider()
+
+                    // Live Scheduled Alarms Status Table
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f))
+                            .padding(14.dp)
+                            .testTag("scheduled_alarms_status_table"),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = strings.tr("Live Offline Scheduled Alarms Queue", "অফলাইন নির্ধারিত অ্যালার্ম তালিকা"),
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = prefs.cityName,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+
+                        scheduledAlarms.forEach { alarmRow ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(MaterialTheme.colorScheme.surface)
+                                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        Text(
+                                            text = if (strings.isBn) alarmRow.prayerType.titleBn else alarmRow.prayerType.titleEn,
+                                            style = MaterialTheme.typography.titleSmall,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                        Box(
+                                            modifier = Modifier
+                                                .clip(CircleShape)
+                                                .background(
+                                                    if (alarmRow.isEnabled) VerifiedEmerald.copy(alpha = 0.16f)
+                                                    else MaterialTheme.colorScheme.surfaceVariant
+                                                )
+                                                .padding(horizontal = 8.dp, vertical = 2.dp)
+                                        ) {
+                                            Text(
+                                                text = when {
+                                                    !alarmRow.isEnabled -> strings.tr("MUTED", "বন্ধ")
+                                                    alarmRow.isTomorrow -> strings.tr("TOMORROW", "আগামীকাল")
+                                                    else -> strings.tr("TODAY", "আজ")
+                                                },
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = if (alarmRow.isEnabled) VerifiedEmerald else MaterialTheme.colorScheme.onSurfaceVariant,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+                                    }
+                                    if (alarmRow.isEnabled && alarmRow.advanceMinutes > 0 && alarmRow.advanceTimeFormatted != null) {
+                                        Text(
+                                            text = strings.tr(
+                                                "Advance (-${alarmRow.advanceMinutes}m): ${alarmRow.advanceTimeFormatted}",
+                                                "অগ্রিম (-${alarmRow.advanceMinutes}মি.): ${alarmRow.advanceTimeFormatted}"
+                                            ),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
+                                }
+                                Text(
+                                    text = alarmRow.waqtTimeFormatted,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (alarmRow.isEnabled) MaterialTheme.colorScheme.onSurface
+                                    else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                                )
+                            }
+                        }
+                    }
+
+                    Button(
+                        onClick = { viewModel.syncAndVerifyPrayerAlarmsNow() },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("sync_alarms_now_button")
+                    ) {
+                        Icon(Icons.Default.CheckCircle, contentDescription = null)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(strings.tr("Sync & Verify Offline Alarms Now", "অফলাইন অ্যালার্ম এখনই সিঙ্ক ও যাচাই করুন"))
                     }
 
                     OutlinedButton(

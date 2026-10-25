@@ -51,6 +51,7 @@
             android:exported="true">
             <intent-filter>
                 <action android:name="com.aistudio.salahmate.ACTION_PRAYER_ALARM" />
+                <action android:name="com.aistudio.salahmate.ACTION_PRAYER_MARK_COMPLETED" />
                 <action android:name="com.aistudio.salahmate.ACTION_PRAYER_SNOOZE" />
                 <action android:name="com.aistudio.salahmate.ACTION_PRAYER_DISMISS" />
                 <action android:name="android.intent.action.BOOT_COMPLETED" />

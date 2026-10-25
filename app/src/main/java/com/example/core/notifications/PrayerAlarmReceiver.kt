@@ -4,14 +4,21 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import androidx.core.app.NotificationManagerCompat
+import com.example.core.database.PrayerLogEntity
+import com.example.core.database.SalahMateDatabase
 import com.example.core.preferences.NotificationSoundMode
 import com.example.core.preferences.UserPreferencesRepository
 import com.example.core.preferences.salahMateDataStore
+import com.example.domain.prayer.DailyPrayerType
 import com.example.widget.SalahMateWidgetProvider
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.TimeZone
 
 class PrayerAlarmReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent?) {
@@ -25,31 +32,75 @@ class PrayerAlarmReceiver : BroadcastReceiver() {
 
                 when (action) {
                     PrayerNotificationScheduler.ACTION_PRAYER_ALARM -> {
+                        val prayerTypeName = intent.getStringExtra(PrayerNotificationScheduler.EXTRA_PRAYER_TYPE)
                         val prayerName = intent.getStringExtra(PrayerNotificationScheduler.EXTRA_PRAYER_NAME) ?: "Prayer"
                         val timeText = intent.getStringExtra(PrayerNotificationScheduler.EXTRA_PRAYER_TIME_TEXT) ?: ""
                         val soundModeStr = intent.getStringExtra(PrayerNotificationScheduler.EXTRA_SOUND_MODE) ?: prefs.notificationSoundMode.name
                         val isAdvance = intent.getBooleanExtra(PrayerNotificationScheduler.EXTRA_IS_ADVANCE, false)
                         val soundMode = runCatching { NotificationSoundMode.valueOf(soundModeStr) }
                             .getOrDefault(NotificationSoundMode.ADHAN_CHIME)
+                        val prayerType = prayerTypeName?.let {
+                            runCatching { DailyPrayerType.valueOf(it) }.getOrNull()
+                        }
 
                         PrayerNotificationScheduler.showPrayerNotification(
                             context = context,
                             prayerName = prayerName,
                             prayerTimeFormatted = timeText,
                             soundMode = soundMode,
-                            isAdvanceReminder = isAdvance
+                            isAdvanceReminder = isAdvance,
+                            prayerType = prayerType
                         )
-                        // Schedule next prayer / next day's alarms and refresh home-screen widget
+                        // Schedule next prayer / next day's alarms + WorkManager fallback and refresh home-screen widget
                         PrayerNotificationScheduler.scheduleDailyPrayerAlarms(context, prefs)
+                        SalahMateWidgetProvider.updateAllWidgets(context)
+                    }
+
+                    PrayerNotificationScheduler.ACTION_PRAYER_MARK_COMPLETED -> {
+                        val notifId = intent.getIntExtra("notif_id", 0)
+                        if (notifId != 0) NotificationManagerCompat.from(context).cancel(notifId)
+
+                        val prayerTypeName = intent.getStringExtra(PrayerNotificationScheduler.EXTRA_PRAYER_TYPE)
+                        val prayerName = intent.getStringExtra(PrayerNotificationScheduler.EXTRA_PRAYER_NAME) ?: ""
+                        val resolvedType = prayerTypeName?.let {
+                            runCatching { DailyPrayerType.valueOf(it) }.getOrNull()
+                        } ?: DailyPrayerType.entries.find {
+                            prayerName.startsWith(it.titleEn, ignoreCase = true)
+                        } ?: DailyPrayerType.FAJR
+
+                        val tz = TimeZone.getTimeZone(prefs.timeZoneId)
+                        val dateIso = SimpleDateFormat("yyyy-MM-dd", Locale.US).apply {
+                            timeZone = tz
+                        }.format(Date())
+
+                        val dao = SalahMateDatabase.getInstance(context).salahMateDao()
+                        val existing = dao.getPrayerLogForDate(dateIso) ?: PrayerLogEntity(dateIso = dateIso)
+                        val updated = when (resolvedType) {
+                            DailyPrayerType.FAJR -> existing.copy(fajrCompleted = true)
+                            DailyPrayerType.DHUHR -> existing.copy(dhuhrCompleted = true)
+                            DailyPrayerType.ASR -> existing.copy(asrCompleted = true)
+                            DailyPrayerType.MAGHRIB -> existing.copy(maghribCompleted = true)
+                            DailyPrayerType.ISHA -> existing.copy(ishaCompleted = true)
+                            DailyPrayerType.SUNRISE -> existing
+                        }.copy(updatedAtMillis = System.currentTimeMillis())
+
+                        dao.upsertPrayerLog(updated)
                         SalahMateWidgetProvider.updateAllWidgets(context)
                     }
 
                     PrayerNotificationScheduler.ACTION_PRAYER_SNOOZE -> {
                         val notifId = intent.getIntExtra("notif_id", 0)
                         if (notifId != 0) NotificationManagerCompat.from(context).cancel(notifId)
+                        val prayerTypeName = intent.getStringExtra(PrayerNotificationScheduler.EXTRA_PRAYER_TYPE) ?: DailyPrayerType.FAJR.name
                         val prayerName = intent.getStringExtra(PrayerNotificationScheduler.EXTRA_PRAYER_NAME) ?: "Prayer"
                         val soundModeStr = intent.getStringExtra(PrayerNotificationScheduler.EXTRA_SOUND_MODE) ?: prefs.notificationSoundMode.name
-                        PrayerNotificationScheduler.scheduleSnoozeAlarm(context, prayerName, soundModeStr, 10)
+                        PrayerNotificationScheduler.scheduleSnoozeAlarm(
+                            context = context,
+                            prayerName = prayerName,
+                            soundModeName = soundModeStr,
+                            delayMinutes = 10,
+                            prayerTypeName = prayerTypeName
+                        )
                     }
 
                     PrayerNotificationScheduler.ACTION_PRAYER_DISMISS -> {
@@ -61,7 +112,7 @@ class PrayerAlarmReceiver : BroadcastReceiver() {
                     Intent.ACTION_TIME_CHANGED,
                     Intent.ACTION_TIMEZONE_CHANGED,
                     Intent.ACTION_MY_PACKAGE_REPLACED -> {
-                        // Reschedule all enabled prayer alarms after reboot, time-zone change, or update
+                        // Reschedule all enabled prayer alarms + WorkManager offline jobs after reboot, time-zone change, or update
                         PrayerNotificationScheduler.scheduleDailyPrayerAlarms(context, prefs)
                         SalahMateWidgetProvider.updateAllWidgets(context)
                     }

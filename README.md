@@ -1,14 +1,17 @@
-# SalahMate (সালাহমেট) — Offline-First Islamic Companion for Android
+# SalahMate (সালাহমেট) — Offline-First Open-Source Islamic Companion for Android
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-0F4C81.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT%20(100%25%20Open%20Source)-0F4C81.svg)](LICENSE)
+[![Developer: Mohammad Sami Islam](https://img.shields.io/badge/Developer-Mohammad%20Sami%20Islam-D4AF37.svg)](https://github.com/)
 [![Platform: Android](https://img.shields.io/badge/Platform-Android%207.0%2B%20(API%2024--36)-3DDC84.svg)](app/build.gradle.kts)
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.2.10-7F52FF.svg)](gradle/libs.versions.toml)
 [![UI: Jetpack Compose + Material 3](https://img.shields.io/badge/UI-Jetpack%20Compose%20%2B%20M3-4285F4.svg)](app/src/main/java/com/example/MainActivity.kt)
 [![Architecture: Offline-First](https://img.shields.io/badge/Architecture-Offline--First%20%7C%20Zero%20Tracking-10B981.svg)](PRIVACY.md)
 
-**SalahMate** is a complete, privacy-respecting, offline-first Islamic Android application built with **Kotlin**, **Jetpack Compose**, **Material 3**, **Room**, **DataStore**, **Retrofit/Moshi**, and the **Batoulapps Adhan** astronomical library.
+**Developed by Mohammad Sami Islam** • **100% Free & Open-Source Software (MIT License)**
 
-It provides accurate local prayer times, opt-in Adhan notifications, a native home-screen widget, a full 114-Surah Quran reader with Bengali and English translations and audio recitation, Hifz memorization tracking, verified Hadith and Dua libraries, a sensor-fused Qibla compass, Digital Tasbih, Ramadan Suhoor/Iftar schedules, Hijri calendar events, a transparent Zakat calculator, daily prayer tracking, Islamic learning guides, and a Mosque finder—**without requiring user accounts, cloud servers, or Firebase**.
+**SalahMate** is a complete, privacy-respecting, offline-first Islamic Android application built with **Kotlin**, **Jetpack Compose**, **Material 3**, **Room**, **DataStore**, **AlarmManager + WorkManager**, **Retrofit/Moshi**, and the **Batoulapps Adhan** astronomical library.
+
+It provides accurate local prayer times, offline Adhan push notifications (`AlarmManager` + `WorkManager`), a native home-screen widget, a full 114-Surah Quran reader with Bengali and English translations and audio recitation, Hifz memorization tracking, verified Hadith and Dua libraries, a sensor-fused Qibla compass, Digital Tasbih, Ramadan Suhoor/Iftar schedules, Hijri calendar events, a transparent Zakat calculator, daily prayer tracking, Islamic learning guides, and a Mosque finder—**without requiring user accounts, cloud servers, ads, or Firebase**.
 
 ---
 
@@ -163,7 +166,10 @@ This repository includes two automated GitHub Actions workflows in [`.github/wor
 
 ---
 
-## 9. License & Religious Content Attribution
+## 9. Developer, License & Religious Content Attribution
 
-- **Source Code**: Licensed under the **[MIT License](LICENSE)**.
+- **Developer & Author**: **Mohammad Sami Islam** (`mdsamiislam2006@gmail.com`)
+- **Application ID**: `com.samiislam.salahmate`
+- **Source Code**: 100% Free & Open-Source Software licensed under the **[MIT License](LICENSE)** (`Copyright (c) 2026 Mohammad Sami Islam`).
 - **Religious Texts & Audio Recitations**: Quranic Arabic script (`quran-uthmani` via Tanzil / AlQuran.cloud), Bengali translation (*Muhiuddin Khan*), English translation (*Saheeh International*), audio recitation (*Mishary Rashid Alafasy*), and canonical Hadith/Dua texts remain subject to their respective attribution and verbatim integrity requirements detailed in [`CONTENT_LICENSES.md`](CONTENT_LICENSES.md).
+

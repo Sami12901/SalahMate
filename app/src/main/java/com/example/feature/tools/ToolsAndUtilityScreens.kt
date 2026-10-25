@@ -1339,6 +1339,82 @@ fun SettingsAndBackupScreen(
         }
 
         item {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(22.dp))
+                    .background(
+                        Brush.linearGradient(
+                            colors = listOf(MidnightSapphire, SapphireElevated, Color(0xFF0A4D3C))
+                        )
+                    )
+                    .testTag("developer_attribution_card")
+            ) {
+                IslamicGeometricBackground(
+                    modifier = Modifier.matchParentSize(),
+                    patternColor = IlluminatedGoldLight,
+                    patternAlpha = 0.08f
+                )
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(18.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = "✦  100% FREE & OPEN-SOURCE ISLAMIC PROJECT  ✦",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = IlluminatedGoldLight,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = strings.tr("Developer: Mohammad Sami Islam", "ডেভেলপার: মোহাম্মদ সামি ইসলাম (Mohammad Sami Islam)"),
+                        style = MaterialTheme.typography.titleLarge,
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = strings.tr(
+                            "SalahMate is a 100% free, open-source Islamic Android application (MIT License) developed by Mohammad Sami Islam. Built for the Ummah with zero ads, zero tracking, and complete offline-first reliability.",
+                            "সালাহমেট সম্পূর্ণ ফ্রি ও ওপেন-সোর্স (MIT License) একটি ইসলামিক অ্যান্ড্রয়েড অ্যাপ—ডেভেলপার: Mohammad Sami Islam। কোনো বিজ্ঞাপন বা ট্র্যাকিং ছাড়াই সম্পূর্ণ অফলাইনে নির্ভরযোগ্যভাবে ব্যবহারের জন্য নির্মিত।"
+                        ),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.White.copy(alpha = 0.88f)
+                    )
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Surface(
+                            shape = CircleShape,
+                            color = VerifiedEmerald.copy(alpha = 0.24f)
+                        ) {
+                            Text(
+                                text = "MIT Open-Source License",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color(0xFF80CBC4),
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                            )
+                        }
+                        Surface(
+                            shape = CircleShape,
+                            color = Color.White.copy(alpha = 0.14f)
+                        ) {
+                            Text(
+                                text = "com.samiislam.salahmate",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = IlluminatedGoldLight,
+                                fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        item {
             OutlinedCard(modifier = Modifier.fillMaxWidth()) {
                 Column(
                     modifier = Modifier.padding(16.dp),
@@ -1350,7 +1426,8 @@ fun SettingsAndBackupScreen(
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "• Prayer & Qibla Engine: Batoulapps Adhan Java/Kotlin Library (MIT License) + Optional AlAdhan REST API.\n" +
+                        text = "• Developer & Maintainer: Mohammad Sami Islam (MIT Open-Source License).\n" +
+                            "• Prayer & Qibla Engine: Batoulapps Adhan Java/Kotlin Library (MIT License) + Optional AlAdhan REST API.\n" +
                             "• Quran Text, Translations & Recitation: AlQuran.cloud API (Tanzil Uthmani Arabic, Muhiuddin Khan Bengali, Saheeh International English, Mishary Rashid Alafasy Audio).\n" +
                             "• Hadith & Dua Sources: Sahih al-Bukhari, Sahih Muslim, Riyad as-Salihin, Al-Arba'in an-Nawawiyyah, Hisnul Muslim + Optional Sunnah.com API.\n" +
                             "• Privacy Guarantee: Serverless architecture. No Firebase, no advertising SDKs, no user accounts, and no third-party sharing of prayer logs, notes, or coordinates.",
@@ -1362,3 +1439,4 @@ fun SettingsAndBackupScreen(
         }
     }
 }
+

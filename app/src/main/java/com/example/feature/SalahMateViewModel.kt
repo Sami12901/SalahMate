@@ -688,7 +688,7 @@ class SalahMateViewModel(application: Application) : AndroidViewModel(applicatio
     fun fetchOptionalSunnahApiHadiths(collectionSlug: String = "bukhari") {
         val configuredKey = BuildConfig.SUNNAH_API_KEY
         if (configuredKey.isBlank() || configuredKey == "OPTIONAL_SUNNAH_API_KEY") {
-            showStatusMessage("Using verified offline Hadith collection. Add SUNNAH_API_KEY in AI Studio Secrets for live Sunnah.com API queries.")
+            showStatusMessage("Using verified offline Hadith collection. Configure SUNNAH_API_KEY in .env for optional live Sunnah.com API queries.")
             return
         }
         viewModelScope.launch {

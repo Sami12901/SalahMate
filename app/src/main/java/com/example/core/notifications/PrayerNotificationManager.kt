@@ -49,10 +49,10 @@ data class ScheduledPrayerAlarmInfo(
 object PrayerNotificationScheduler {
     const val CHANNEL_ID_PRAYER = "salahmate_prayer_alerts"
     const val CHANNEL_ID_SILENT = "salahmate_prayer_silent"
-    const val ACTION_PRAYER_ALARM = "com.aistudio.salahmate.ACTION_PRAYER_ALARM"
-    const val ACTION_PRAYER_SNOOZE = "com.aistudio.salahmate.ACTION_PRAYER_SNOOZE"
-    const val ACTION_PRAYER_DISMISS = "com.aistudio.salahmate.ACTION_PRAYER_DISMISS"
-    const val ACTION_PRAYER_MARK_COMPLETED = "com.aistudio.salahmate.ACTION_PRAYER_MARK_COMPLETED"
+    const val ACTION_PRAYER_ALARM = "com.samiislam.salahmate.ACTION_PRAYER_ALARM"
+    const val ACTION_PRAYER_SNOOZE = "com.samiislam.salahmate.ACTION_PRAYER_SNOOZE"
+    const val ACTION_PRAYER_DISMISS = "com.samiislam.salahmate.ACTION_PRAYER_DISMISS"
+    const val ACTION_PRAYER_MARK_COMPLETED = "com.samiislam.salahmate.ACTION_PRAYER_MARK_COMPLETED"
 
     const val EXTRA_PRAYER_TYPE = "extra_prayer_type"
     const val EXTRA_PRAYER_NAME = "extra_prayer_name"

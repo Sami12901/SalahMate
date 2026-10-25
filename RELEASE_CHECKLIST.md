@@ -1,7 +1,7 @@
 # Release & GitHub Publishing Checklist (`RELEASE_CHECKLIST.md`)
 
 ## 1. Application & Religious Content Integrity
-- [x] Unique `applicationId` (`com.aistudio.salahmate.rxkpmq`) configured in `app/build.gradle.kts`.
+- [x] Unique `applicationId` (`com.samiislam.salahmate`) configured in `app/build.gradle.kts`.
 - [x] Custom Sapphire & Silver adaptive launcher icon (`ic_launcher_foreground.xml`, `ic_launcher_background.xml`, and density PNGs in `mipmap-*`) configured without default green template assets.
 - [x] Firebase and unused camera/cloud dependencies removed/commented out for minimal APK footprint and strict offline privacy.
 - [x] Least-privilege permissions declared in `AndroidManifest.xml` (`INTERNET`, `ACCESS_NETWORK_STATE`, optional `ACCESS_COARSE_LOCATION`, `POST_NOTIFICATIONS`, `VIBRATE`, `RECEIVE_BOOT_COMPLETED`, `SCHEDULE_EXACT_ALARM`).

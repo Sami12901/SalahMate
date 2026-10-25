@@ -11,17 +11,23 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -39,7 +45,6 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -48,11 +53,218 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.example.domain.prayer.DailyPrayerType
 import com.example.ui.theme.AmiriQuranFontFamily
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
+
+/**
+ * Responsive layout metrics computed dynamically from BoxWithConstraints for any Android device
+ * (compact phones <360dp, standard phones 360-599dp, foldables/tablets >=600dp).
+ */
+data class AdaptiveLayoutMetrics(
+    val screenWidth: Dp,
+    val screenHeight: Dp,
+    val isCompactPhone: Boolean,
+    val isWideScreen: Boolean,
+    val horizontalPadding: Dp,
+    val verticalPadding: Dp,
+    val cardSpacing: Dp,
+    val bentoColumns: Int,
+    val maxContentWidth: Dp
+)
+
+@Composable
+fun AdaptiveScreenContainer(
+    modifier: Modifier = Modifier,
+    content: @Composable (AdaptiveLayoutMetrics) -> Unit
+) {
+    BoxWithConstraints(
+        modifier = modifier.fillMaxSize(),
+        contentAlignment = Alignment.TopCenter
+    ) {
+        val compact = maxWidth < 360.dp
+        val wide = maxWidth >= 600.dp
+        val metrics = AdaptiveLayoutMetrics(
+            screenWidth = maxWidth,
+            screenHeight = maxHeight,
+            isCompactPhone = compact,
+            isWideScreen = wide,
+            horizontalPadding = when {
+                compact -> 12.dp
+                wide -> 24.dp
+                else -> 16.dp
+            },
+            verticalPadding = if (compact) 10.dp else 14.dp,
+            cardSpacing = if (compact) 10.dp else 14.dp,
+            bentoColumns = when {
+                maxWidth >= 840.dp -> 4
+                wide -> 3
+                else -> 2
+            },
+            maxContentWidth = if (wide) 860.dp else maxWidth
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .widthIn(max = metrics.maxContentWidth),
+            contentAlignment = Alignment.TopCenter
+        ) {
+            content(metrics)
+        }
+    }
+}
+
+/**
+ * Full-width glassmorphic modal dialog that replaces narrow default AlertDialogs so chips,
+ * headers, and multi-section forms never crush or clip on any Android screen size.
+ */
+@Composable
+fun GlassmorphicModalDialog(
+    onDismissRequest: () -> Unit,
+    title: String,
+    subtitle: String? = null,
+    badgeText: String = "۞",
+    modifier: Modifier = Modifier,
+    dismissButton: @Composable (RowScope.() -> Unit)? = null,
+    confirmButton: @Composable RowScope.() -> Unit,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Dialog(
+        onDismissRequest = onDismissRequest,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false
+        )
+    ) {
+        BoxWithConstraints(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 12.dp, vertical = 16.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            val maxDialogHeight = (maxHeight * 0.90f).coerceAtLeast(360.dp)
+            val isCompact = maxWidth < 360.dp
+
+            Surface(
+                shape = RoundedCornerShape(26.dp),
+                color = MaterialTheme.colorScheme.surface,
+                tonalElevation = 8.dp,
+                shadowElevation = 16.dp,
+                border = BorderStroke(
+                    1.2.dp,
+                    Brush.linearGradient(
+                        colors = listOf(
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.55f),
+                             Color(0xFFFDE68A).copy(alpha = 0.45f),
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.55f)
+                        )
+                    )
+                ),
+                modifier = modifier
+                    .fillMaxWidth(0.96f)
+                    .widthIn(max = 560.dp)
+                    .heightIn(max = maxDialogHeight)
+            ) {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    // Ornate Sky-Gradient Dialog Header
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(
+                                Brush.linearGradient(
+                                    colors = listOf(
+                                        Color(0xFF0A2E52),
+                                        Color(0xFF0F4C81),
+                                        Color(0xFF17375E)
+                                    )
+                                )
+                            )
+                    ) {
+                        IslamicGeometricBackground(
+                            modifier = Modifier.matchParentSize(),
+                            patternColor = Color.White,
+                            patternAlpha = 0.08f
+                        )
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(
+                                    horizontal = if (isCompact) 14.dp else 18.dp,
+                                    vertical = if (isCompact) 12.dp else 16.dp
+                                ),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            AyahRosetteMedallion(
+                                numberText = badgeText,
+                                size = if (isCompact) 36.dp else 42.dp,
+                                tint = Color(0xFFFDE68A)
+                            )
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = title,
+                                    style = MaterialTheme.typography.titleLarge.copy(
+                                        fontSize = if (isCompact) 18.sp else 20.sp
+                                    ),
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                if (!subtitle.isNullOrBlank()) {
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = subtitle,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = Color(0xFFBAE6FD),
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // Adaptive Scrollable Body Area
+                    Column(
+                        modifier = Modifier
+                            .weight(1f, fill = false)
+                            .fillMaxWidth()
+                            .padding(
+                                horizontal = if (isCompact) 14.dp else 18.dp,
+                                vertical = 12.dp
+                            ),
+                        content = content
+                    )
+
+                    HorizontalDivider(
+                        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.18f)
+                    )
+
+                    // Sticky Bottom Action Bar
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f))
+                            .padding(
+                                horizontal = if (isCompact) 14.dp else 18.dp,
+                                vertical = 10.dp
+                            ),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (dismissButton != null) {
+                            dismissButton()
+                        }
+                        confirmButton()
+                    }
+                }
+            }
+        }
+    }
+}
 
 /**
  * Time-aware atmospheric sky gradient palette for the Home Hero Card and headers.
@@ -151,7 +363,8 @@ fun DrawScope.drawRubElHizbStar(
 }
 
 /**
- * Custom 180-degree animated prayer progress arc with glowing orbital marker.
+ * Custom 180-degree animated prayer progress arc with glowing orbital marker,
+ * dynamically sized via BoxWithConstraints for compact phones, large phones, and tablets.
  */
 @Composable
 fun PrayerProgressArcGauge(
@@ -168,129 +381,154 @@ fun PrayerProgressArcGauge(
         label = "prayer_arc_progress"
     )
 
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(142.dp),
+    BoxWithConstraints(
+        modifier = modifier.fillMaxWidth(),
         contentAlignment = Alignment.BottomCenter
     ) {
-        Canvas(
+        val isCompact = maxWidth < 340.dp
+        val isWide = maxWidth >= 520.dp
+        val gaugeHeight = when {
+            isCompact -> 130.dp
+            isWide -> 164.dp
+            else -> 146.dp
+        }
+        val countdownFontSize = when {
+            isCompact -> 26.sp
+            isWide -> 36.sp
+            else -> 32.sp
+        }
+
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(142.dp)
+                .height(gaugeHeight),
+            contentAlignment = Alignment.BottomCenter
         ) {
-            val arcDiameter = (size.width * 0.76f).coerceAtMost(size.height * 1.75f)
-            val arcRadius = arcDiameter / 2f
-            val arcLeft = (size.width - arcDiameter) / 2f
-            val arcTop = size.height - arcRadius - 10.dp.toPx()
-            val arcCenter = Offset(size.width / 2f, arcTop + arcRadius)
+            Canvas(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(gaugeHeight)
+            ) {
+                val arcDiameter = (size.width * 0.78f).coerceAtMost(size.height * 1.76f)
+                val arcRadius = arcDiameter / 2f
+                val arcLeft = (size.width - arcDiameter) / 2f
+                val arcTop = size.height - arcRadius - 10.dp.toPx()
+                val arcCenter = Offset(size.width / 2f, arcTop + arcRadius)
 
-            // Outer subtle decorative ring
-            drawArc(
-                color = Color.White.copy(alpha = 0.12f),
-                startAngle = 180f,
-                sweepAngle = 180f,
-                useCenter = false,
-                topLeft = Offset(arcLeft - 10.dp.toPx(), arcTop - 10.dp.toPx()),
-                size = Size(arcDiameter + 20.dp.toPx(), arcDiameter + 20.dp.toPx()),
-                style = Stroke(width = 1.5.dp.toPx(), cap = StrokeCap.Round)
-            )
-
-            // Background track arc
-            drawArc(
-                color = Color.White.copy(alpha = 0.22f),
-                startAngle = 180f,
-                sweepAngle = 180f,
-                useCenter = false,
-                topLeft = Offset(arcLeft, arcTop),
-                size = Size(arcDiameter, arcDiameter),
-                style = Stroke(width = 8.dp.toPx(), cap = StrokeCap.Round)
-            )
-
-            // 5 Waqt milestone ticks along the 180-degree arc
-            for (i in 0..4) {
-                val tickAngleDeg = 180f + (i * 45f)
-                val rad = tickAngleDeg * (PI / 180.0)
-                val innerR = arcRadius - 10.dp.toPx()
-                val outerR = arcRadius + 10.dp.toPx()
-                val startPt = Offset(
-                    arcCenter.x + (innerR * cos(rad)).toFloat(),
-                    arcCenter.y + (innerR * sin(rad)).toFloat()
+                // Outer subtle decorative ring
+                drawArc(
+                    color = Color.White.copy(alpha = 0.12f),
+                    startAngle = 180f,
+                    sweepAngle = 180f,
+                    useCenter = false,
+                    topLeft = Offset(arcLeft - 10.dp.toPx(), arcTop - 10.dp.toPx()),
+                    size = Size(arcDiameter + 20.dp.toPx(), arcDiameter + 20.dp.toPx()),
+                    style = Stroke(width = 1.5.dp.toPx(), cap = StrokeCap.Round)
                 )
-                val endPt = Offset(
-                    arcCenter.x + (outerR * cos(rad)).toFloat(),
-                    arcCenter.y + (outerR * sin(rad)).toFloat()
+
+                // Background track arc
+                drawArc(
+                    color = Color.White.copy(alpha = 0.22f),
+                    startAngle = 180f,
+                    sweepAngle = 180f,
+                    useCenter = false,
+                    topLeft = Offset(arcLeft, arcTop),
+                    size = Size(arcDiameter, arcDiameter),
+                    style = Stroke(width = 8.dp.toPx(), cap = StrokeCap.Round)
                 )
-                drawLine(
-                    color = Color.White.copy(alpha = 0.35f),
-                    start = startPt,
-                    end = endPt,
-                    strokeWidth = 2.dp.toPx(),
-                    cap = StrokeCap.Round
+
+                // 5 Waqt milestone ticks along the 180-degree arc
+                for (i in 0..4) {
+                    val tickAngleDeg = 180f + (i * 45f)
+                    val rad = tickAngleDeg * (PI / 180.0)
+                    val innerR = arcRadius - 10.dp.toPx()
+                    val outerR = arcRadius + 10.dp.toPx()
+                    val startPt = Offset(
+                        arcCenter.x + (innerR * cos(rad)).toFloat(),
+                        arcCenter.y + (innerR * sin(rad)).toFloat()
+                    )
+                    val endPt = Offset(
+                        arcCenter.x + (outerR * cos(rad)).toFloat(),
+                        arcCenter.y + (outerR * sin(rad)).toFloat()
+                    )
+                    drawLine(
+                        color = Color.White.copy(alpha = 0.35f),
+                        start = startPt,
+                        end = endPt,
+                        strokeWidth = 2.dp.toPx(),
+                        cap = StrokeCap.Round
+                    )
+                }
+
+                // Active luminous progress arc
+                val sweep = 180f * animatedProgress
+                drawArc(
+                    brush = Brush.horizontalGradient(
+                        colors = listOf(
+                            Color(0xFF93C5FD),
+                            Color(0xFFE0F2FE),
+                            Color(0xFFFDE68A)
+                        )
+                    ),
+                    startAngle = 180f,
+                    sweepAngle = sweep,
+                    useCenter = false,
+                    topLeft = Offset(arcLeft, arcTop),
+                    size = Size(arcDiameter, arcDiameter),
+                    style = Stroke(width = 8.dp.toPx(), cap = StrokeCap.Round)
+                )
+
+                // Glowing orbital indicator on arc tip
+                val indicatorAngleRad = (180f + sweep) * (PI / 180.0)
+                val orbCenter = Offset(
+                    arcCenter.x + (arcRadius * cos(indicatorAngleRad)).toFloat(),
+                    arcCenter.y + (arcRadius * sin(indicatorAngleRad)).toFloat()
+                )
+                drawCircle(
+                    color = Color(0xFFFDE68A).copy(alpha = 0.35f),
+                    radius = 12.dp.toPx(),
+                    center = orbCenter
+                )
+                drawCircle(
+                    color = Color.White,
+                    radius = 5.5.dp.toPx(),
+                    center = orbCenter
                 )
             }
 
-            // Active luminous progress arc
-            val sweep = 180f * animatedProgress
-            drawArc(
-                brush = Brush.horizontalGradient(
-                    colors = listOf(
-                        Color(0xFF93C5FD),
-                        Color(0xFFE0F2FE),
-                        Color(0xFFFDE68A)
-                    )
-                ),
-                startAngle = 180f,
-                sweepAngle = sweep,
-                useCenter = false,
-                topLeft = Offset(arcLeft, arcTop),
-                size = Size(arcDiameter, arcDiameter),
-                style = Stroke(width = 8.dp.toPx(), cap = StrokeCap.Round)
-            )
-
-            // Glowing orbital indicator on arc tip
-            val indicatorAngleRad = (180f + sweep) * (PI / 180.0)
-            val orbCenter = Offset(
-                arcCenter.x + (arcRadius * cos(indicatorAngleRad)).toFloat(),
-                arcCenter.y + (arcRadius * sin(indicatorAngleRad)).toFloat()
-            )
-            drawCircle(
-                color = Color(0xFFFDE68A).copy(alpha = 0.35f),
-                radius = 12.dp.toPx(),
-                center = orbCenter
-            )
-            drawCircle(
-                color = Color.White,
-                radius = 5.5.dp.toPx(),
-                center = orbCenter
-            )
-        }
-
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.padding(bottom = 4.dp)
-        ) {
-            Text(
-                text = nextPrayerLabel,
-                style = MaterialTheme.typography.titleMedium,
-                color = Color(0xFFBAE6FD),
-                fontWeight = FontWeight.SemiBold
-            )
-            Text(
-                text = countdownText,
-                style = MaterialTheme.typography.displayMedium.copy(
-                    fontSize = 32.sp,
-                    letterSpacing = 1.sp
-                ),
-                color = Color.White,
-                fontWeight = FontWeight.Bold,
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier
-            )
-            Text(
-                text = nextPrayerTimeText,
-                style = MaterialTheme.typography.labelLarge,
-                color = Color(0xFFE2E8F0)
-            )
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp, vertical = 4.dp)
+            ) {
+                Text(
+                    text = nextPrayerLabel,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = Color(0xFFBAE6FD),
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = countdownText,
+                    style = MaterialTheme.typography.displayMedium.copy(
+                        fontSize = countdownFontSize,
+                        letterSpacing = 1.sp
+                    ),
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    modifier = Modifier.testTag(countdownTestTag)
+                )
+                Text(
+                    text = nextPrayerTimeText,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = Color(0xFFE2E8F0),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
         }
     }
 }
@@ -335,7 +573,7 @@ fun GlassmorphicContainerCard(
 }
 
 /**
- * Balanced 2-Column Mobile Bento Card with icon medallion, title, and live subtitle.
+ * Responsive Bento Card with icon medallion, title, and live subtitle.
  */
 @Composable
 fun BentoFeatureCard(
@@ -437,6 +675,7 @@ fun AyahRosetteMedallion(
             style = MaterialTheme.typography.labelLarge.copy(fontSize = 12.sp),
             fontWeight = FontWeight.Bold,
             color = tint,
+            maxLines = 1,
             textAlign = TextAlign.Center
         )
     }
@@ -454,7 +693,6 @@ fun MushafSurahHeaderBanner(
     showBismillah: Boolean,
     modifier: Modifier = Modifier
 ) {
-    val primary = MaterialTheme.colorScheme.primary
     Box(
         modifier = modifier
             .fillMaxWidth()
@@ -483,9 +721,7 @@ fun MushafSurahHeaderBanner(
             )
     ) {
         IslamicGeometricBackground(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(if (showBismillah) 156.dp else 110.dp),
+            modifier = Modifier.matchParentSize(),
             patternColor = Color.White,
             patternAlpha = 0.09f
         )
@@ -493,7 +729,7 @@ fun MushafSurahHeaderBanner(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 18.dp, vertical = 16.dp),
+                .padding(horizontal = 16.dp, vertical = 14.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
@@ -510,29 +746,36 @@ fun MushafSurahHeaderBanner(
 
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.weight(1f).padding(horizontal = 8.dp)
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(horizontal = 8.dp)
                 ) {
                     Text(
                         text = surahTitle,
                         style = MaterialTheme.typography.titleLarge,
                         color = Color.White,
                         fontWeight = FontWeight.Bold,
-                        textAlign = TextAlign.Center
+                        textAlign = TextAlign.Center,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                     Text(
                         text = revelationAndAyahs,
                         style = MaterialTheme.typography.labelLarge,
                         color = Color(0xFFBAE6FD),
-                        textAlign = TextAlign.Center
+                        textAlign = TextAlign.Center,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
 
                 Text(
                     text = surahArabicName,
                     fontFamily = AmiriQuranFontFamily,
-                    fontSize = 28.sp,
+                    fontSize = 26.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFFFDE68A)
+                    color = Color(0xFFFDE68A),
+                    maxLines = 1
                 )
             }
 
@@ -546,10 +789,11 @@ fun MushafSurahHeaderBanner(
                     Text(
                         text = "بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ",
                         fontFamily = AmiriQuranFontFamily,
-                        fontSize = 24.sp,
+                        fontSize = 22.sp,
                         color = Color.White,
                         textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(horizontal = 22.dp, vertical = 6.dp)
+                        maxLines = 1,
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp)
                     )
                 }
             }

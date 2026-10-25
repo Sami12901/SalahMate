@@ -11,6 +11,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -84,6 +85,7 @@ import com.example.feature.AppDestination
 import com.example.feature.SalahMateViewModel
 import com.example.ui.components.AyahRosetteMedallion
 import com.example.ui.components.GlassmorphicContainerCard
+import com.example.ui.components.GlassmorphicModalDialog
 import com.example.ui.components.IslamicGeometricBackground
 import com.example.ui.theme.AmiriQuranFontFamily
 import com.example.ui.theme.VerifiedEmerald
@@ -123,9 +125,7 @@ fun WorshipHubScreen(
                     )
             ) {
                 IslamicGeometricBackground(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(108.dp),
+                    modifier = Modifier.matchParentSize(),
                     patternColor = Color.White,
                     patternAlpha = 0.08f
                 )
@@ -634,139 +634,152 @@ fun DigitalTasbihScreen(
                         val primaryColor = MaterialTheme.colorScheme.primary
                         val outlineColor = MaterialTheme.colorScheme.outline
 
-                        Box(
-                            modifier = Modifier.size(264.dp),
+                        BoxWithConstraints(
+                            modifier = Modifier.fillMaxWidth(),
                             contentAlignment = Alignment.Center
                         ) {
-                            // Outer 3D-Shaded Bead Ring Canvas
-                            Canvas(modifier = Modifier.fillMaxSize()) {
-                                val center = Offset(size.width / 2f, size.height / 2f)
-                                val ringRadius = size.minDimension * 0.43f
+                            val ringBoxSize = (maxWidth * 0.80f).coerceIn(220.dp, 320.dp)
+                            val centerMedallionSize = ringBoxSize * 0.66f
 
-                                // Tasbih cord / string ring
-                                drawCircle(
-                                    color = outlineColor.copy(alpha = 0.35f),
-                                    radius = ringRadius,
-                                    center = center,
-                                    style = Stroke(width = 3.dp.toPx())
-                                )
+                            Box(
+                                modifier = Modifier.size(ringBoxSize),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                // Outer 3D-Shaded Bead Ring Canvas
+                                Canvas(modifier = Modifier.fillMaxSize()) {
+                                    val center = Offset(size.width / 2f, size.height / 2f)
+                                    val ringRadius = size.minDimension * 0.43f
 
-                                // Draw 33 3D-shaded beads around the ring
-                                for (i in 0 until beadCountOnRing) {
-                                    val angleDeg = (i * (360f / beadCountOnRing)) - 90f + (animatedPhase * (360f / beadCountOnRing) * 0.15f)
-                                    val angleRad = angleDeg * (PI / 180.0)
-                                    val bx = center.x + (ringRadius * cos(angleRad)).toFloat()
-                                    val by = center.y + (ringRadius * sin(angleRad)).toFloat()
-                                    val beadCenter = Offset(bx, by)
+                                    // Tasbih cord / string ring
+                                    drawCircle(
+                                        color = outlineColor.copy(alpha = 0.35f),
+                                        radius = ringRadius,
+                                        center = center,
+                                        style = Stroke(width = 3.dp.toPx())
+                                    )
 
-                                    val isPassed = i < activeBeadInCycle || (activeSession.currentCount > 0 && activeBeadInCycle == 0)
-                                    val isCurrentHead = i == activeBeadInCycle
-                                    val beadRadius = when {
-                                        isCurrentHead -> 9.5.dp.toPx()
-                                        i % 11 == 0 -> 8.2.dp.toPx() // Imam / divider bead every 11 beads
-                                        else -> 6.8.dp.toPx()
-                                    }
+                                    // Draw 33 3D-shaded beads around the ring
+                                    for (i in 0 until beadCountOnRing) {
+                                        val angleDeg = (i * (360f / beadCountOnRing)) - 90f + (animatedPhase * (360f / beadCountOnRing) * 0.15f)
+                                        val angleRad = angleDeg * (PI / 180.0)
+                                        val bx = center.x + (ringRadius * cos(angleRad)).toFloat()
+                                        val by = center.y + (ringRadius * sin(angleRad)).toFloat()
+                                        val beadCenter = Offset(bx, by)
 
-                                    if (isCurrentHead) {
+                                        val isPassed = i < activeBeadInCycle || (activeSession.currentCount > 0 && activeBeadInCycle == 0)
+                                        val isCurrentHead = i == activeBeadInCycle
+                                        val beadRadius = when {
+                                            isCurrentHead -> 9.5.dp.toPx()
+                                            i % 11 == 0 -> 8.2.dp.toPx() // Imam / divider bead every 11 beads
+                                            else -> 6.8.dp.toPx()
+                                        }
+
+                                        if (isCurrentHead) {
+                                            drawCircle(
+                                                color = Color(0xFFFDE68A).copy(alpha = 0.38f),
+                                                radius = beadRadius * 1.65f,
+                                                center = beadCenter
+                                            )
+                                        }
+
+                                        val beadBrush = when {
+                                            isCurrentHead -> Brush.radialGradient(
+                                                colors = listOf(
+                                                    Color(0xFFFFFBEB),
+                                                    Color(0xFFF59E0B),
+                                                    Color(0xFFB45309)
+                                                ),
+                                                center = Offset(bx - beadRadius * 0.3f, by - beadRadius * 0.3f),
+                                                radius = beadRadius * 1.3f
+                                            )
+                                            isPassed -> Brush.radialGradient(
+                                                colors = listOf(
+                                                    Color(0xFFBAE6FD),
+                                                    primaryColor,
+                                                    Color(0xFF0A2E52)
+                                                ),
+                                                center = Offset(bx - beadRadius * 0.3f, by - beadRadius * 0.3f),
+                                                radius = beadRadius * 1.3f
+                                            )
+                                            else -> Brush.radialGradient(
+                                                colors = listOf(
+                                                    Color(0xFFE2E8F0),
+                                                    Color(0xFF64748B),
+                                                    Color(0xFF334155)
+                                                ),
+                                                center = Offset(bx - beadRadius * 0.3f, by - beadRadius * 0.3f),
+                                                radius = beadRadius * 1.3f
+                                            )
+                                        }
+
                                         drawCircle(
-                                            color = Color(0xFFFDE68A).copy(alpha = 0.38f),
-                                            radius = beadRadius * 1.65f,
+                                            brush = beadBrush,
+                                            radius = beadRadius,
                                             center = beadCenter
                                         )
                                     }
-
-                                    val beadBrush = when {
-                                        isCurrentHead -> Brush.radialGradient(
-                                            colors = listOf(
-                                                Color(0xFFFFFBEB),
-                                                Color(0xFFF59E0B),
-                                                Color(0xFFB45309)
-                                            ),
-                                            center = Offset(bx - beadRadius * 0.3f, by - beadRadius * 0.3f),
-                                            radius = beadRadius * 1.3f
-                                        )
-                                        isPassed -> Brush.radialGradient(
-                                            colors = listOf(
-                                                Color(0xFFBAE6FD),
-                                                primaryColor,
-                                                Color(0xFF0A2E52)
-                                            ),
-                                            center = Offset(bx - beadRadius * 0.3f, by - beadRadius * 0.3f),
-                                            radius = beadRadius * 1.3f
-                                        )
-                                        else -> Brush.radialGradient(
-                                            colors = listOf(
-                                                Color(0xFFE2E8F0),
-                                                Color(0xFF64748B),
-                                                Color(0xFF334155)
-                                            ),
-                                            center = Offset(bx - beadRadius * 0.3f, by - beadRadius * 0.3f),
-                                            radius = beadRadius * 1.3f
-                                        )
-                                    }
-
-                                    drawCircle(
-                                        brush = beadBrush,
-                                        radius = beadRadius,
-                                        center = beadCenter
-                                    )
                                 }
-                            }
 
-                            // Center Tactile Tap Medallion
-                            Box(
-                                modifier = Modifier
-                                    .size(176.dp)
-                                    .clip(CircleShape)
-                                    .background(
-                                        Brush.radialGradient(
-                                            colors = listOf(
-                                                Color(0xFF1E4E8C),
-                                                Color(0xFF0F4C81),
-                                                Color(0xFF082545)
-                                            )
-                                        )
-                                    )
-                                    .border(
-                                        BorderStroke(
-                                            2.dp,
-                                            Brush.linearGradient(
+                                // Center Tactile Tap Medallion
+                                Box(
+                                    modifier = Modifier
+                                        .size(centerMedallionSize)
+                                        .clip(CircleShape)
+                                        .background(
+                                            Brush.radialGradient(
                                                 colors = listOf(
-                                                    Color(0xFFFDE68A),
-                                                    Color(0xFF93C5FD),
-                                                    Color(0xFFFDE68A)
+                                                    Color(0xFF1E4E8C),
+                                                    Color(0xFF0F4C81),
+                                                    Color(0xFF082545)
                                                 )
                                             )
-                                        ),
-                                        CircleShape
-                                    )
-                                    .clickable {
-                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                        viewModel.incrementTasbih(activeSession)
+                                        )
+                                        .border(
+                                            BorderStroke(
+                                                2.dp,
+                                                Brush.linearGradient(
+                                                    colors = listOf(
+                                                        Color(0xFFFDE68A),
+                                                        Color(0xFF93C5FD),
+                                                        Color(0xFFFDE68A)
+                                                    )
+                                                )
+                                            ),
+                                            CircleShape
+                                        )
+                                        .clickable {
+                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            viewModel.incrementTasbih(activeSession)
+                                        }
+                                        .testTag("tasbih_tap_button"),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Text(
+                                            text = "${activeSession.currentCount}",
+                                            style = MaterialTheme.typography.displayLarge.copy(
+                                                fontSize = if (ringBoxSize < 250.dp) 34.sp else 42.sp
+                                            ),
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color.White,
+                                            maxLines = 1,
+                                            modifier = Modifier.testTag("tasbih_count_text")
+                                        )
+                                        Text(
+                                            text = "/ ${activeSession.targetCount}",
+                                            style = MaterialTheme.typography.titleMedium,
+                                            color = Color(0xFFFDE68A),
+                                            maxLines = 1
+                                        )
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            text = strings.tr("TAP TO COUNT", "গণনা করতে ট্যাপ করুন"),
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = Color(0xFFBAE6FD),
+                                            fontWeight = FontWeight.Bold,
+                                            maxLines = 1
+                                        )
                                     }
-                                    .testTag("tasbih_tap_button"),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Text(
-                                        text = "${activeSession.currentCount}",
-                                        style = MaterialTheme.typography.displayLarge.copy(fontSize = 42.sp),
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color.White,
-                                        modifier = Modifier.testTag("tasbih_count_text")
-                                    )
-                                    Text(
-                                        text = "/ ${activeSession.targetCount}",
-                                        style = MaterialTheme.typography.titleMedium,
-                                        color = Color(0xFFFDE68A)
-                                    )
-                                    Spacer(modifier = Modifier.height(6.dp))
-                                    Text(
-                                        text = strings.tr("TAP TO COUNT", "গণনা করতে ট্যাপ করুন"),
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = Color(0xFFBAE6FD),
-                                        fontWeight = FontWeight.Bold
-                                    )
                                 }
                             }
                         }
@@ -780,11 +793,11 @@ fun DigitalTasbihScreen(
                                 .clip(RoundedCornerShape(4.dp))
                         )
 
-                        // Target Presets & Reset Button
-                        Row(
+                        // Target Presets & Reset Button (FlowRow prevents crowding on compact phones)
+                        FlowRow(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                 listOf(33, 34, 100, 1000).forEach { target ->
@@ -793,7 +806,13 @@ fun DigitalTasbihScreen(
                                         onClick = {
                                             viewModel.updateTasbihTargetAndNote(activeSession, target, activeSession.personalNote)
                                         },
-                                        label = { Text("$target") }
+                                        label = {
+                                            Text(
+                                                text = "$target",
+                                                maxLines = 1,
+                                                softWrap = false
+                                            )
+                                        }
                                     )
                                 }
                             }
@@ -804,7 +823,11 @@ fun DigitalTasbihScreen(
                             ) {
                                 Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(4.dp))
-                                Text(strings.tr("Reset", "রিসেট"))
+                                Text(
+                                    text = strings.tr("Reset", "রিসেট"),
+                                    maxLines = 1,
+                                    softWrap = false
+                                )
                             }
                         }
 
@@ -824,16 +847,14 @@ fun DigitalTasbihScreen(
     }
 
     if (showResetConfirmation && activeSession != null) {
-        AlertDialog(
+        GlassmorphicModalDialog(
             onDismissRequest = { showResetConfirmation = false },
-            title = { Text(strings.tr("Reset Current Session?", "বর্তমান গণনা শূন্য করবেন?")) },
-            text = {
-                Text(
-                    strings.tr(
-                        "Reset ${activeSession.phraseTransliteration} from ${activeSession.currentCount} back to 0? Your lifetime total (${activeSession.totalLifetimeCount}) will be preserved.",
-                        "বর্তমান গণনা (${activeSession.currentCount}) শূন্য করা হবে, তবে মোট সংরক্ষিত গণনা (${activeSession.totalLifetimeCount}) অক্ষুণ্ণ থাকবে।"
-                    )
-                )
+            title = strings.tr("Reset Current Session?", "বর্তমান গণনা শূন্য করবেন?"),
+            subtitle = activeSession.phraseTransliteration,
+            dismissButton = {
+                TextButton(onClick = { showResetConfirmation = false }) {
+                    Text(strings.tr("Cancel", "বাতিল"), maxLines = 1)
+                }
             },
             confirmButton = {
                 Button(
@@ -841,17 +862,21 @@ fun DigitalTasbihScreen(
                         viewModel.resetTasbihCurrentCount(activeSession)
                         showResetConfirmation = false
                     },
+                    shape = RoundedCornerShape(50),
                     modifier = Modifier.testTag("confirm_tasbih_reset_btn")
                 ) {
-                    Text(strings.tr("Confirm Reset", "হ্যাঁ, রিসেট করুন"))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showResetConfirmation = false }) {
-                    Text(strings.tr("Cancel", "বাতিল"))
+                    Text(strings.tr("Confirm Reset", "হ্যাঁ, রিসেট করুন"), maxLines = 1)
                 }
             }
-        )
+        ) {
+            Text(
+                text = strings.tr(
+                    "Reset ${activeSession.phraseTransliteration} from ${activeSession.currentCount} back to 0? Your lifetime total (${activeSession.totalLifetimeCount}) will be preserved.",
+                    "বর্তমান গণনা (${activeSession.currentCount}) শূন্য করা হবে, তবে মোট সংরক্ষিত গণনা (${activeSession.totalLifetimeCount}) অক্ষুণ্ণ থাকবে।"
+                ),
+                style = MaterialTheme.typography.bodyMedium
+            )
+        }
     }
 
     if (showAddPhraseDialog) {
@@ -860,15 +885,13 @@ fun DigitalTasbihScreen(
         var enText by remember { mutableStateOf("") }
         var targetText by remember { mutableStateOf("100") }
 
-        AlertDialog(
+        GlassmorphicModalDialog(
             onDismissRequest = { showAddPhraseDialog = false },
-            title = { Text(strings.tr("Add Custom Dhikr Phrase", "নতুন যিকির যুক্ত করুন")) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(value = arText, onValueChange = { arText = it }, label = { Text("Arabic Text (Optional)") })
-                    OutlinedTextField(value = trText, onValueChange = { trText = it }, label = { Text("Transliteration (e.g. SubhanAllahi wa bihamdihi)") })
-                    OutlinedTextField(value = enText, onValueChange = { enText = it }, label = { Text("Meaning") })
-                    OutlinedTextField(value = targetText, onValueChange = { targetText = it }, label = { Text("Target Count") })
+            title = strings.tr("Add Custom Dhikr Phrase", "নতুন যিকির যুক্ত করুন"),
+            subtitle = strings.tr("Saved locally to your Tasbih presets", "আপনার তাসবীহ তালিকায় সংরক্ষিত থাকবে"),
+            dismissButton = {
+                TextButton(onClick = { showAddPhraseDialog = false }) {
+                    Text(strings.tr("Cancel", "বাতিল"), maxLines = 1)
                 }
             },
             confirmButton = {
@@ -883,17 +906,47 @@ fun DigitalTasbihScreen(
                             )
                             showAddPhraseDialog = false
                         }
-                    }
+                    },
+                    shape = RoundedCornerShape(50)
                 ) {
-                    Text(strings.tr("Save", "সংরক্ষণ"))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showAddPhraseDialog = false }) {
-                    Text(strings.tr("Cancel", "বাতিল"))
+                    Text(strings.tr("Save", "সংরক্ষণ"), maxLines = 1)
                 }
             }
-        )
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedTextField(
+                    value = arText,
+                    onValueChange = { arText = it },
+                    label = { Text("Arabic Text (Optional)") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = trText,
+                    onValueChange = { trText = it },
+                    label = { Text("Transliteration (e.g. SubhanAllahi wa bihamdihi)") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = enText,
+                    onValueChange = { enText = it },
+                    label = { Text("Meaning") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = targetText,
+                    onValueChange = { targetText = it },
+                    label = { Text("Target Count") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
     }
 }
 

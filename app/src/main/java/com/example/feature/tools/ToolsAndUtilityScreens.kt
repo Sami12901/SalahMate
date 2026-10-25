@@ -9,6 +9,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -188,7 +189,9 @@ fun ToolsHubScreen(
                     .testTag("tool_card_${dest.name.lowercase()}")
             ) {
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -359,14 +362,19 @@ fun QiblaCompassScreen(
                     }
 
                     if (!numericModeOnly) {
-                        // Ornate Astrolabe Qibla Dial
-                        Box(
-                            modifier = Modifier
-                                .size(276.dp)
-                                .padding(8.dp),
+                        // Ornate Astrolabe Qibla Dial dynamically sized for any Android screen
+                        BoxWithConstraints(
+                            modifier = Modifier.fillMaxWidth(),
                             contentAlignment = Alignment.Center
                         ) {
-                            Canvas(modifier = Modifier.fillMaxSize()) {
+                            val dialSize = (maxWidth * 0.80f).coerceIn(216.dp, 340.dp)
+                            Box(
+                                modifier = Modifier
+                                    .size(dialSize)
+                                    .padding(8.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Canvas(modifier = Modifier.fillMaxSize()) {
                                 val radius = size.minDimension / 2f
                                 val center = Offset(size.width / 2f, size.height / 2f)
 
@@ -497,6 +505,7 @@ fun QiblaCompassScreen(
                                     center = center
                                 )
                             }
+                        }
                         }
 
                         // Alignment Status Pill
@@ -712,18 +721,31 @@ fun HijriCalendarScreen(
                         style = MaterialTheme.typography.titleMedium
                     )
 
-                    Row(
+                    @OptIn(ExperimentalLayoutApi::class)
+                    Column(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        Text(strings.tr("Moon-Sighting Adjustment:", "চাঁদ দেখা সমন্বয় (দিন):"))
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text(
+                            text = strings.tr("Moon-Sighting Adjustment:", "চাঁদ দেখা সমন্বয় (দিন):"),
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
                             (-2..2).forEach { adj ->
                                 FilterChip(
                                     selected = prefs.hijriAdjustmentDays == adj,
                                     onClick = { viewModel.setHijriAdjustment(adj) },
-                                    label = { Text(if (adj >= 0) "+$adj" else "$adj") }
+                                    label = {
+                                        Text(
+                                            text = if (adj >= 0) "+$adj" else "$adj",
+                                            maxLines = 1,
+                                            softWrap = false
+                                        )
+                                    }
                                 )
                             }
                         }

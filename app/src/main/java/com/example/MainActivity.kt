@@ -157,6 +157,7 @@ fun SalahMateApp(viewModel: SalahMateViewModel) {
 
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
             val isExpandedScreen = maxWidth >= 600.dp
+            val isCompactPhone = maxWidth < 360.dp
 
             Scaffold(
                 contentWindowInsets = WindowInsets.safeDrawing,
@@ -196,14 +197,20 @@ fun SalahMateApp(viewModel: SalahMateViewModel) {
                                 Column {
                                     Text(
                                         text = strings.appTitle,
-                                        style = MaterialTheme.typography.titleLarge.copy(fontSize = 19.sp),
+                                        style = MaterialTheme.typography.titleLarge.copy(
+                                            fontSize = if (isCompactPhone) 17.sp else 19.sp
+                                        ),
                                         fontWeight = FontWeight.Bold,
+                                        maxLines = 1,
+                                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                                         modifier = Modifier.testTag("app_top_title")
                                     )
                                     Text(
                                         text = "${prefs.cityName} • ${prefs.calculationMethod.name}",
                                         style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.primary
+                                        color = MaterialTheme.colorScheme.primary,
+                                        maxLines = 1,
+                                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                                     )
                                 }
                             },
@@ -219,7 +226,9 @@ fun SalahMateApp(viewModel: SalahMateViewModel) {
                                     label = {
                                         Text(
                                             text = if (prefs.languageCode == "bn") "বাংলা" else "EN",
-                                            fontWeight = FontWeight.Bold
+                                            fontWeight = FontWeight.Bold,
+                                            maxLines = 1,
+                                            softWrap = false
                                         )
                                     },
                                     leadingIcon = {
@@ -231,7 +240,7 @@ fun SalahMateApp(viewModel: SalahMateViewModel) {
                                     },
                                     modifier = Modifier.testTag("language_toggle_chip")
                                 )
-                                Spacer(modifier = Modifier.width(4.dp))
+                                Spacer(modifier = Modifier.width(2.dp))
                                 IconButton(
                                     onClick = {
                                         val nextTheme = if (useDarkTheme) ThemePreference.LIGHT else ThemePreference.DARK
@@ -292,7 +301,9 @@ fun SalahMateApp(viewModel: SalahMateViewModel) {
                                         label = {
                                             Text(
                                                 text = item.label,
-                                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                                maxLines = 1,
+                                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                                             )
                                         },
                                         modifier = Modifier.testTag(item.testTag)
@@ -317,7 +328,13 @@ fun SalahMateApp(viewModel: SalahMateViewModel) {
                                     selected = currentDest == item.destination,
                                     onClick = { viewModel.navigateTo(item.destination) },
                                     icon = { Icon(item.icon, contentDescription = item.label) },
-                                    label = { Text(item.label) },
+                                    label = {
+                                        Text(
+                                            text = item.label,
+                                            maxLines = 1,
+                                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                                        )
+                                    },
                                     modifier = Modifier.testTag(item.testTag)
                                 )
                             }
@@ -327,34 +344,37 @@ fun SalahMateApp(viewModel: SalahMateViewModel) {
                     Box(
                         modifier = Modifier
                             .weight(1f)
-                            .fillMaxSize()
+                            .fillMaxSize(),
+                        contentAlignment = Alignment.TopCenter
                     ) {
-                        AnimatedContent(
-                            targetState = currentDest,
-                            transitionSpec = {
-                                fadeIn(animationSpec = tween(220)) togetherWith
-                                    fadeOut(animationSpec = tween(180))
-                            },
-                            label = "screen_transition"
-                        ) { targetDest ->
-                            when (targetDest) {
-                                AppDestination.HOME -> HomeDashboardScreen(viewModel, strings)
-                                AppDestination.PRAYER -> PrayerEngineAndNotificationsScreen(viewModel, strings)
-                                AppDestination.QURAN -> QuranReaderScreen(viewModel, strings)
-                                AppDestination.WORSHIP -> WorshipHubScreen(viewModel, strings)
-                                AppDestination.TOOLS -> ToolsHubScreen(viewModel, strings)
-                                AppDestination.QIBLA -> QiblaCompassScreen(viewModel, strings)
-                                AppDestination.TASBIH -> DigitalTasbihScreen(viewModel, strings)
-                                AppDestination.DUA -> DuaAndAdhkarScreen(viewModel, strings)
-                                AppDestination.HADITH -> HadithLibraryScreen(viewModel, strings)
-                                AppDestination.HIFZ -> HifzTrackerScreen(viewModel, strings)
-                                AppDestination.RAMADAN -> RamadanScheduleScreen(viewModel, strings)
-                                AppDestination.CALENDAR -> HijriCalendarScreen(viewModel, strings)
-                                AppDestination.ZAKAT -> ZakatCalculatorScreen(viewModel, strings)
-                                AppDestination.PRAYER_TRACKER -> PrayerTrackerScreen(viewModel, strings)
-                                AppDestination.LEARNING -> IslamicLearningScreen(viewModel, strings)
-                                AppDestination.MOSQUE_FINDER -> MosqueFinderScreen(viewModel, strings)
-                                AppDestination.SETTINGS -> SettingsAndBackupScreen(viewModel, strings)
+                        com.example.ui.components.AdaptiveScreenContainer {
+                            AnimatedContent(
+                                targetState = currentDest,
+                                transitionSpec = {
+                                    fadeIn(animationSpec = tween(220)) togetherWith
+                                        fadeOut(animationSpec = tween(180))
+                                },
+                                label = "screen_transition"
+                            ) { targetDest ->
+                                when (targetDest) {
+                                    AppDestination.HOME -> HomeDashboardScreen(viewModel, strings)
+                                    AppDestination.PRAYER -> PrayerEngineAndNotificationsScreen(viewModel, strings)
+                                    AppDestination.QURAN -> QuranReaderScreen(viewModel, strings)
+                                    AppDestination.WORSHIP -> WorshipHubScreen(viewModel, strings)
+                                    AppDestination.TOOLS -> ToolsHubScreen(viewModel, strings)
+                                    AppDestination.QIBLA -> QiblaCompassScreen(viewModel, strings)
+                                    AppDestination.TASBIH -> DigitalTasbihScreen(viewModel, strings)
+                                    AppDestination.DUA -> DuaAndAdhkarScreen(viewModel, strings)
+                                    AppDestination.HADITH -> HadithLibraryScreen(viewModel, strings)
+                                    AppDestination.HIFZ -> HifzTrackerScreen(viewModel, strings)
+                                    AppDestination.RAMADAN -> RamadanScheduleScreen(viewModel, strings)
+                                    AppDestination.CALENDAR -> HijriCalendarScreen(viewModel, strings)
+                                    AppDestination.ZAKAT -> ZakatCalculatorScreen(viewModel, strings)
+                                    AppDestination.PRAYER_TRACKER -> PrayerTrackerScreen(viewModel, strings)
+                                    AppDestination.LEARNING -> IslamicLearningScreen(viewModel, strings)
+                                    AppDestination.MOSQUE_FINDER -> MosqueFinderScreen(viewModel, strings)
+                                    AppDestination.SETTINGS -> SettingsAndBackupScreen(viewModel, strings)
+                                }
                             }
                         }
                     }

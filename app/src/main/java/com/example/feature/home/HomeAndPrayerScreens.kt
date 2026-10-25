@@ -99,8 +99,10 @@ import com.example.core.utils.BilingualStrings
 import com.example.domain.prayer.DailyPrayerType
 import com.example.feature.AppDestination
 import com.example.feature.SalahMateViewModel
+import androidx.compose.foundation.layout.BoxWithConstraints
 import com.example.ui.components.BentoFeatureCard
 import com.example.ui.components.GlassmorphicContainerCard
+import com.example.ui.components.GlassmorphicModalDialog
 import com.example.ui.components.IslamicGeometricBackground
 import com.example.ui.components.PrayerProgressArcGauge
 import com.example.ui.components.skyGradientForPrayer
@@ -132,140 +134,13 @@ fun FirstLaunchOnboardingDialog(
         }
     }
 
-    AlertDialog(
+    GlassmorphicModalDialog(
         onDismissRequest = { /* Require explicit confirmation on first launch */ },
-        title = {
-            Column {
-                Text(
-                    text = strings.tr("Welcome to SalahMate", "সালাহমেট-এ স্বাগতম"),
-                    style = MaterialTheme.typography.headlineMedium
-                )
-                Text(
-                    text = strings.tr(
-                        "Select your city, prayer calculation authority, and Asr school to begin.",
-                        "শুরু করতে আপনার শহর, নামাজের সময় গণনা পদ্ধতি এবং আসরের মাজহাব নির্বাচন করুন।"
-                    ),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        },
-        text = {
-            LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.height(420.dp)
-            ) {
-                item {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = strings.tr("1. Select City / Coordinates", "১. শহর বা স্থানাঙ্ক নির্বাচন করুন"),
-                            style = MaterialTheme.typography.titleMedium
-                        )
-                        AssistChip(
-                            onClick = { gpsPermissionLauncher.launch(Manifest.permission.ACCESS_COARSE_LOCATION) },
-                            label = { Text(strings.tr("Use GPS", "জিপিএস")) },
-                            leadingIcon = { Icon(Icons.Default.MyLocation, contentDescription = null, modifier = Modifier.size(16.dp)) },
-                            modifier = Modifier.testTag("onboarding_gps_chip")
-                        )
-                    }
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        PRESET_CITIES.forEach { city ->
-                            FilterChip(
-                                selected = !useCustomCoords && selectedCity.nameEn == city.nameEn,
-                                onClick = {
-                                    useCustomCoords = false
-                                    selectedCity = city
-                                    selectedMethod = city.recommendedMethod
-                                    selectedSchool = city.recommendedSchool
-                                },
-                                label = { Text(if (strings.isBn) city.nameBn else city.nameEn) }
-                            )
-                        }
-                        FilterChip(
-                            selected = useCustomCoords,
-                            onClick = { useCustomCoords = true },
-                            label = { Text(strings.tr("Custom Lat/Lon", "কাস্টম স্থানাঙ্ক")) }
-                        )
-                    }
-                    if (useCustomCoords) {
-                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            OutlinedTextField(
-                                value = customCityName,
-                                onValueChange = { customCityName = it },
-                                label = { Text(strings.tr("City / Area Name", "শহরের নাম")) },
-                                singleLine = true,
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                OutlinedTextField(
-                                    value = customLatText,
-                                    onValueChange = { customLatText = it },
-                                    label = { Text("Latitude") },
-                                    singleLine = true,
-                                    modifier = Modifier.weight(1f)
-                                )
-                                OutlinedTextField(
-                                    value = customLonText,
-                                    onValueChange = { customLonText = it },
-                                    label = { Text("Longitude") },
-                                    singleLine = true,
-                                    modifier = Modifier.weight(1f)
-                                )
-                            }
-                        }
-                    }
-                }
-
-                item {
-                    HorizontalDivider()
-                    Text(
-                        text = strings.tr("2. Calculation Method", "২. সময় গণনা পদ্ধতি"),
-                        style = MaterialTheme.typography.titleMedium
-                    )
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        CalculationMethodOption.entries.forEach { method ->
-                            FilterChip(
-                                selected = selectedMethod == method,
-                                onClick = { selectedMethod = method },
-                                label = {
-                                    Text(
-                                        text = if (strings.isBn) method.titleBn else method.titleEn,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                },
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                        }
-                    }
-                }
-
-                item {
-                    HorizontalDivider()
-                    Text(
-                        text = strings.tr("3. Asr Juristic School (Madhab)", "৩. আসরের ওয়াক্ত নির্ধারণ (মাজহাব)"),
-                        style = MaterialTheme.typography.titleMedium
-                    )
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        AsrJuristicSchool.entries.forEach { school ->
-                            FilterChip(
-                                selected = selectedSchool == school,
-                                onClick = { selectedSchool = school },
-                                label = { Text(if (strings.isBn) school.labelBn else school.labelEn) },
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                        }
-                    }
-                }
-            }
-        },
+        title = strings.tr("Welcome to SalahMate", "সালাহমেট-এ স্বাগতম"),
+        subtitle = strings.tr(
+            "Select your city, prayer calculation authority, and Asr school to begin.",
+            "শুরু করতে আপনার শহর, নামাজের সময় গণনা পদ্ধতি এবং আসরের মাজহাব নির্বাচন করুন।"
+        ),
         confirmButton = {
             Button(
                 onClick = {
@@ -293,12 +168,178 @@ fun FirstLaunchOnboardingDialog(
                         )
                     }
                 },
-                modifier = Modifier.testTag("complete_onboarding_button")
+                shape = RoundedCornerShape(50),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("complete_onboarding_button")
             ) {
-                Text(strings.tr("Save & Continue", "সংরক্ষণ করুন"))
+                Text(
+                    text = strings.tr("Save & Continue", "সংরক্ষণ করুন"),
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1
+                )
             }
         }
-    )
+    ) {
+        LazyColumn(
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = strings.tr("1. Select City / Coordinates", "১. শহর বা স্থানাঙ্ক নির্বাচন করুন"),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(end = 8.dp)
+                    )
+                    AssistChip(
+                        onClick = { gpsPermissionLauncher.launch(Manifest.permission.ACCESS_COARSE_LOCATION) },
+                        label = {
+                            Text(
+                                text = strings.tr("Use GPS", "জিপিএস"),
+                                maxLines = 1,
+                                softWrap = false,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        },
+                        leadingIcon = {
+                            Icon(
+                                Icons.Default.MyLocation,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        },
+                        modifier = Modifier.testTag("onboarding_gps_chip")
+                    )
+                }
+                Spacer(modifier = Modifier.height(6.dp))
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    PRESET_CITIES.forEach { city ->
+                        FilterChip(
+                            selected = !useCustomCoords && selectedCity.nameEn == city.nameEn,
+                            onClick = {
+                                useCustomCoords = false
+                                selectedCity = city
+                                selectedMethod = city.recommendedMethod
+                                selectedSchool = city.recommendedSchool
+                            },
+                            label = {
+                                Text(
+                                    text = if (strings.isBn) city.nameBn else city.nameEn,
+                                    maxLines = 1,
+                                    softWrap = false
+                                )
+                            }
+                        )
+                    }
+                    FilterChip(
+                        selected = useCustomCoords,
+                        onClick = { useCustomCoords = true },
+                        label = {
+                            Text(
+                                text = strings.tr("Custom Lat/Lon", "কাস্টম স্থানাঙ্ক"),
+                                maxLines = 1,
+                                softWrap = false
+                            )
+                        }
+                    )
+                }
+                if (useCustomCoords) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        OutlinedTextField(
+                            value = customCityName,
+                            onValueChange = { customCityName = it },
+                            label = { Text(strings.tr("City / Area Name", "শহরের নাম")) },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedTextField(
+                                value = customLatText,
+                                onValueChange = { customLatText = it },
+                                label = { Text("Latitude") },
+                                singleLine = true,
+                                modifier = Modifier.weight(1f)
+                            )
+                            OutlinedTextField(
+                                value = customLonText,
+                                onValueChange = { customLonText = it },
+                                label = { Text("Longitude") },
+                                singleLine = true,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+                }
+            }
+
+            item {
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = strings.tr("2. Calculation Method", "২. সময় গণনা পদ্ধতি"),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    CalculationMethodOption.entries.forEach { method ->
+                        FilterChip(
+                            selected = selectedMethod == method,
+                            onClick = { selectedMethod = method },
+                            label = {
+                                Text(
+                                    text = if (strings.isBn) method.titleBn else method.titleEn,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
+            }
+
+            item {
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = strings.tr("3. Asr Juristic School (Madhab)", "৩. আসরের ওয়াক্ত নির্ধারণ (মাজহাব)"),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    AsrJuristicSchool.entries.forEach { school ->
+                        FilterChip(
+                            selected = selectedSchool == school,
+                            onClick = { selectedSchool = school },
+                            label = {
+                                Text(
+                                    text = if (strings.isBn) school.labelBn else school.labelEn,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
+            }
+        }
+    }
 }
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -325,116 +366,136 @@ fun HomeDashboardScreen(
         elapsedRatio.coerceIn(0.12f, 0.92f)
     }
 
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .testTag("home_dashboard_list"),
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
-    ) {
-        // 1. Sky-Gradient & Islamic Geometric Hero Card with 180-Degree Prayer Progress Arc
-        item {
-            ElevatedCard(
-                shape = RoundedCornerShape(26.dp),
-                elevation = CardDefaults.elevatedCardElevation(defaultElevation = 6.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("hero_prayer_card")
-            ) {
-                Box(
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val isCompactScreen = maxWidth < 360.dp
+        val bentoColumnsCount = when {
+            maxWidth >= 780.dp -> 4
+            maxWidth >= 560.dp -> 3
+            else -> 2
+        }
+
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .testTag("home_dashboard_list"),
+            contentPadding = PaddingValues(
+                horizontal = if (isCompactScreen) 12.dp else 16.dp,
+                vertical = if (isCompactScreen) 10.dp else 14.dp
+            ),
+            verticalArrangement = Arrangement.spacedBy(if (isCompactScreen) 10.dp else 14.dp)
+        ) {
+            // 1. Sky-Gradient & Islamic Geometric Hero Card with 180-Degree Prayer Progress Arc
+            item {
+                ElevatedCard(
+                    shape = RoundedCornerShape(26.dp),
+                    elevation = CardDefaults.elevatedCardElevation(defaultElevation = 6.dp),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(
-                            skyGradientForPrayer(
-                                currentPrayer = countdown.currentPrayer,
-                                nextPrayer = countdown.nextPrayer
-                            )
-                        )
-                        .border(
-                            BorderStroke(
-                                1.2.dp,
-                                Brush.linearGradient(
-                                    colors = listOf(
-                                        Color(0xFF93C5FD).copy(alpha = 0.65f),
-                                        Color(0xFFFDE68A).copy(alpha = 0.45f),
-                                        Color(0xFF93C5FD).copy(alpha = 0.65f)
-                                    )
-                                )
-                            ),
-                            shape = RoundedCornerShape(26.dp)
-                        )
+                        .testTag("hero_prayer_card")
                 ) {
-                    Image(
-                        painter = painterResource(id = R.drawable.ic_hero_mosque_banner),
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                        alpha = 0.35f,
+                    Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(278.dp)
-                    )
-                    IslamicGeometricBackground(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(278.dp),
-                        patternColor = Color.White,
-                        patternAlpha = 0.08f
-                    )
-
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 18.dp, vertical = 16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column {
-                                Text(
-                                    text = if (strings.isBn) schedule.hijriDate.formattedBn else schedule.hijriDate.formattedEn,
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = Color(0xFFFDE68A),
-                                    fontWeight = FontWeight.Bold
+                            .background(
+                                skyGradientForPrayer(
+                                    currentPrayer = countdown.currentPrayer,
+                                    nextPrayer = countdown.nextPrayer
                                 )
-                                Text(
-                                    text = schedule.readableGregorianDate,
-                                    style = MaterialTheme.typography.labelLarge,
-                                    color = Color(0xFFE2E8F0)
-                                )
-                            }
-
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(50))
-                                    .background(Color.White.copy(alpha = 0.16f))
-                                    .border(
-                                        1.dp,
-                                        Color.White.copy(alpha = 0.35f),
-                                        RoundedCornerShape(50)
+                            )
+                            .border(
+                                BorderStroke(
+                                    1.2.dp,
+                                    Brush.linearGradient(
+                                        colors = listOf(
+                                            Color(0xFF93C5FD).copy(alpha = 0.65f),
+                                            Color(0xFFFDE68A).copy(alpha = 0.45f),
+                                            Color(0xFF93C5FD).copy(alpha = 0.65f)
+                                        )
                                     )
-                                    .clickable { showLocationDialog = true }
-                                    .padding(horizontal = 12.dp, vertical = 6.dp)
-                                    .testTag("change_city_chip")
+                                ),
+                                shape = RoundedCornerShape(26.dp)
+                            )
+                    ) {
+                        Image(
+                            painter = painterResource(id = R.drawable.ic_hero_mosque_banner),
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            alpha = 0.35f,
+                            modifier = Modifier.matchParentSize()
+                        )
+                        IslamicGeometricBackground(
+                            modifier = Modifier.matchParentSize(),
+                            patternColor = Color.White,
+                            patternAlpha = 0.08f
+                        )
+
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(
+                                    horizontal = if (isCompactScreen) 14.dp else 18.dp,
+                                    vertical = 16.dp
+                                ),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Icon(
-                                    imageVector = Icons.Default.LocationOn,
-                                    contentDescription = "Select City",
-                                    tint = Color(0xFFFDE68A),
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    text = prefs.cityName,
-                                    style = MaterialTheme.typography.labelLarge,
-                                    color = Color.White,
-                                    fontWeight = FontWeight.SemiBold
-                                )
+                                Column(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .padding(end = 8.dp)
+                                ) {
+                                    Text(
+                                        text = if (strings.isBn) schedule.hijriDate.formattedBn else schedule.hijriDate.formattedEn,
+                                        style = MaterialTheme.typography.titleMedium,
+                                        color = Color(0xFFFDE68A),
+                                        fontWeight = FontWeight.Bold,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Text(
+                                        text = schedule.readableGregorianDate,
+                                        style = MaterialTheme.typography.labelLarge,
+                                        color = Color(0xFFE2E8F0),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(50))
+                                        .background(Color.White.copy(alpha = 0.16f))
+                                        .border(
+                                            1.dp,
+                                            Color.White.copy(alpha = 0.35f),
+                                            RoundedCornerShape(50)
+                                        )
+                                        .clickable { showLocationDialog = true }
+                                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                                        .testTag("change_city_chip")
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.LocationOn,
+                                        contentDescription = "Select City",
+                                        tint = Color(0xFFFDE68A),
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = prefs.cityName,
+                                        style = MaterialTheme.typography.labelLarge,
+                                        color = Color.White,
+                                        fontWeight = FontWeight.SemiBold,
+                                        maxLines = 1,
+                                        softWrap = false
+                                    )
+                                }
                             }
-                        }
 
                         val nextName = if (strings.isBn) countdown.nextPrayer.titleBn else countdown.nextPrayer.titleEn
                         PrayerProgressArcGauge(
@@ -879,12 +940,12 @@ fun HomeDashboardScreen(
             )
 
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                quickActions.chunked(2).forEach { pair ->
+                quickActions.chunked(bentoColumnsCount).forEach { rowItems ->
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        pair.forEach { item ->
+                        rowItems.forEach { item ->
                             BentoFeatureCard(
                                 title = item.title,
                                 subtitle = item.subtitle,
@@ -895,13 +956,14 @@ fun HomeDashboardScreen(
                                     .testTag(item.testTag)
                             )
                         }
-                        if (pair.size == 1) {
+                        repeat(bentoColumnsCount - rowItems.size) {
                             Spacer(modifier = Modifier.weight(1f))
                         }
                     }
                 }
             }
         }
+    }
     }
 
     if (showLocationDialog) {
@@ -978,75 +1040,16 @@ fun LocationPickerDialog(
         }
     }
 
-    AlertDialog(
+    GlassmorphicModalDialog(
         onDismissRequest = onDismiss,
-        title = { Text(strings.tr("Select City or Coordinates", "শহর বা স্থানাঙ্ক নির্বাচন করুন")) },
-        text = {
-            LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-                modifier = Modifier.height(380.dp)
-            ) {
-                item {
-                    OutlinedButton(
-                        onClick = { gpsLauncher.launch(Manifest.permission.ACCESS_COARSE_LOCATION) },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Icon(Icons.Default.MyLocation, contentDescription = null)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(strings.tr("Detect Current GPS Location (Optional)", "বর্তমান জিপিএস অবস্থান নির্ণয় করুন"))
-                    }
-                }
-                item {
-                    Text(
-                        text = strings.tr("Preset Cities (No GPS Permission Needed)", "নির্ধারিত শহরসমূহ (জিপিএস ছাড়াই)"),
-                        style = MaterialTheme.typography.titleMedium
-                    )
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        PRESET_CITIES.forEach { city ->
-                            FilterChip(
-                                selected = prefs.cityName == city.nameEn,
-                                onClick = {
-                                    viewModel.selectPresetCity(city)
-                                    onDismiss()
-                                },
-                                label = { Text(if (strings.isBn) city.nameBn else city.nameEn) }
-                            )
-                        }
-                    }
-                }
-                item {
-                    HorizontalDivider()
-                    Text(
-                        text = strings.tr("Manual Latitude & Longitude", "ম্যানুয়াল অক্ষাংশ ও দ্রাঘিমাংশ"),
-                        style = MaterialTheme.typography.titleMedium
-                    )
-                    OutlinedTextField(
-                        value = customCity,
-                        onValueChange = { customCity = it },
-                        label = { Text(strings.tr("City / Locality Label", "শহরের নাম")) },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedTextField(
-                            value = customLat,
-                            onValueChange = { customLat = it },
-                            label = { Text("Latitude") },
-                            singleLine = true,
-                            modifier = Modifier.weight(1f)
-                        )
-                        OutlinedTextField(
-                            value = customLon,
-                            onValueChange = { customLon = it },
-                            label = { Text("Longitude") },
-                            singleLine = true,
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-                }
+        title = strings.tr("Select City or Coordinates", "শহর বা স্থানাঙ্ক নির্বাচন করুন"),
+        subtitle = strings.tr(
+            "Choose a preset city, detect GPS once, or enter custom coordinates.",
+            "নির্ধারিত শহর নির্বাচন করুন, জিপিএস ব্যবহার করুন অথবা স্থানাঙ্ক দিন।"
+        ),
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(strings.tr("Close", "বন্ধ করুন"), maxLines = 1)
             }
         },
         confirmButton = {
@@ -1056,17 +1059,102 @@ fun LocationPickerDialog(
                     val lon = customLon.toDoubleOrNull()?.coerceIn(-180.0, 180.0) ?: prefs.longitude
                     viewModel.setCustomCoordinates(customCity, customCountry, lat, lon)
                     onDismiss()
-                }
+                },
+                shape = RoundedCornerShape(50)
             ) {
-                Text(strings.tr("Apply Coordinates", "স্থানাঙ্ক সংরক্ষণ"))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(strings.tr("Close", "বন্ধ করুন"))
+                Text(
+                    text = strings.tr("Apply Coordinates", "স্থানাঙ্ক সংরক্ষণ"),
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1
+                )
             }
         }
-    )
+    ) {
+        LazyColumn(
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            item {
+                OutlinedButton(
+                    onClick = { gpsLauncher.launch(Manifest.permission.ACCESS_COARSE_LOCATION) },
+                    shape = RoundedCornerShape(50),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Default.MyLocation, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = strings.tr("Detect Current GPS Location", "বর্তমান জিপিএস অবস্থান নির্ণয় করুন"),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+            item {
+                Text(
+                    text = strings.tr("Preset Cities (No GPS Permission Needed)", "নির্ধারিত শহরসমূহ (জিপিএস ছাড়াই)"),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    PRESET_CITIES.forEach { city ->
+                        FilterChip(
+                            selected = prefs.cityName == city.nameEn,
+                            onClick = {
+                                viewModel.selectPresetCity(city)
+                                onDismiss()
+                            },
+                            label = {
+                                Text(
+                                    text = if (strings.isBn) city.nameBn else city.nameEn,
+                                    maxLines = 1,
+                                    softWrap = false
+                                )
+                            }
+                        )
+                    }
+                }
+            }
+            item {
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = strings.tr("Manual Latitude & Longitude", "ম্যানুয়াল অক্ষাংশ ও দ্রাঘিমাংশ"),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                OutlinedTextField(
+                    value = customCity,
+                    onValueChange = { customCity = it },
+                    label = { Text(strings.tr("City / Locality Label", "শহরের নাম")) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = customLat,
+                        onValueChange = { customLat = it },
+                        label = { Text("Latitude") },
+                        singleLine = true,
+                        modifier = Modifier.weight(1f)
+                    )
+                    OutlinedTextField(
+                        value = customLon,
+                        onValueChange = { customLon = it },
+                        label = { Text("Longitude") },
+                        singleLine = true,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+        }
+    }
 }
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -1126,7 +1214,11 @@ fun PrayerEngineAndNotificationsScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
 
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FlowRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
                         FilterChip(
                             selected = prefs.providerMode == PrayerProviderMode.LOCAL_ADHAN,
                             onClick = {
@@ -1136,7 +1228,13 @@ fun PrayerEngineAndNotificationsScreen(
                                     PrayerProviderMode.LOCAL_ADHAN
                                 )
                             },
-                            label = { Text(strings.tr("Local Adhan (Offline)", "লোকাল আযান (অফলাইন)")) },
+                            label = {
+                                Text(
+                                    text = strings.tr("Local Adhan (Offline)", "লোকাল আযান (অফলাইন)"),
+                                    maxLines = 1,
+                                    softWrap = false
+                                )
+                            },
                             modifier = Modifier.testTag("provider_local_chip")
                         )
                         FilterChip(
@@ -1148,7 +1246,13 @@ fun PrayerEngineAndNotificationsScreen(
                                     PrayerProviderMode.ONLINE_ALADHAN
                                 )
                             },
-                            label = { Text(strings.tr("AlAdhan API + Cache", "আল-আযান এপিআই")) },
+                            label = {
+                                Text(
+                                    text = strings.tr("AlAdhan API + Cache", "আল-আযান এপিআই"),
+                                    maxLines = 1,
+                                    softWrap = false
+                                )
+                            },
                             modifier = Modifier.testTag("provider_online_chip")
                         )
                     }

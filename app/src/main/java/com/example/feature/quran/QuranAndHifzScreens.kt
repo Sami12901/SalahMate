@@ -89,6 +89,7 @@ import com.example.ui.components.MushafSurahHeaderBanner
 import com.example.ui.theme.AmiriQuranFontFamily
 import com.example.ui.theme.VerifiedEmerald
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun QuranReaderScreen(
     viewModel: SalahMateViewModel,
@@ -295,10 +296,10 @@ fun QuranReaderScreen(
                                             modifier = Modifier.padding(14.dp),
                                             verticalArrangement = Arrangement.spacedBy(8.dp)
                                         ) {
-                                            Row(
+                                            FlowRow(
                                                 modifier = Modifier.fillMaxWidth(),
                                                 horizontalArrangement = Arrangement.SpaceBetween,
-                                                verticalAlignment = Alignment.CenterVertically
+                                                verticalArrangement = Arrangement.spacedBy(8.dp)
                                             ) {
                                                 Button(
                                                     onClick = {
@@ -309,13 +310,21 @@ fun QuranReaderScreen(
                                                 ) {
                                                     Icon(Icons.Default.PlayArrow, contentDescription = null)
                                                     Spacer(modifier = Modifier.width(6.dp))
-                                                    Text(strings.tr("Play Surah Audio", "সূরা তিলাওয়াত শুনুন"))
+                                                    Text(
+                                                        text = strings.tr("Play Surah Audio", "সূরা তিলাওয়াত শুনুন"),
+                                                        maxLines = 1,
+                                                        softWrap = false
+                                                    )
                                                 }
                                                 OutlinedButton(
                                                     onClick = { showReaderSettings = !showReaderSettings },
                                                     shape = RoundedCornerShape(50)
                                                 ) {
-                                                    Text(strings.tr("Font & Translations", "ফন্ট ও অনুবাদ"))
+                                                    Text(
+                                                        text = strings.tr("Font & Translations", "ফন্ট ও অনুবাদ"),
+                                                        maxLines = 1,
+                                                        softWrap = false
+                                                    )
                                                 }
                                             }
 
@@ -452,23 +461,32 @@ fun QuranReaderScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .padding(end = 8.dp)
+                                ) {
                                     AyahRosetteMedallion(
                                         numberText = "${meta.number}",
                                         size = 40.dp,
                                         tint = MaterialTheme.colorScheme.primary
                                     )
                                     Spacer(modifier = Modifier.width(12.dp))
-                                    Column {
+                                    Column(modifier = Modifier.weight(1f)) {
                                         Text(
                                             text = "${meta.nameEn} • ${meta.nameBn}",
                                             style = MaterialTheme.typography.titleMedium,
-                                            fontWeight = FontWeight.SemiBold
+                                            fontWeight = FontWeight.SemiBold,
+                                            maxLines = 1,
+                                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                                         )
                                         Text(
                                             text = "${meta.meaningEn} (${meta.meaningBn}) • ${meta.ayahCount} Ayahs",
                                             style = MaterialTheme.typography.bodyMedium,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            maxLines = 1,
+                                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                                         )
                                     }
                                 }

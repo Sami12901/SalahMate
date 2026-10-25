@@ -16,6 +16,39 @@ import kotlinx.coroutines.flow.map
 val Context.salahMateDataStore: DataStore<Preferences> by preferencesDataStore(name = "salahmate_preferences")
 
 enum class ThemePreference { SYSTEM, LIGHT, DARK }
+
+enum class IslamicColorTheme(
+    val titleEn: String,
+    val titleBn: String,
+    val subtitleEn: String,
+    val subtitleBn: String
+) {
+    MADINAH_EMERALD(
+        titleEn = "Sacred Madinah Emerald",
+        titleBn = "সবুজ মদিনা (Madinah Emerald)",
+        subtitleEn = "Green Dome emerald & illuminated brass gold",
+        subtitleBn = "মসজিদে নববীর সবুজ গম্বুজ ও সোনালি আভা"
+    ),
+    KAABA_MIDNIGHT_GOLD(
+        titleEn = "Kaaba Midnight Gold",
+        titleBn = "কাবা সোনালি কৃষ্ণ (Kaaba Gold)",
+        subtitleEn = "Kiswah obsidian silk & burnished gold",
+        subtitleBn = "পবিত্র কাবার গিলাফ ও উজ্জ্বল সোনালি কারুকাজ"
+    ),
+    AL_AQSA_SAPPHIRE(
+        titleEn = "Al-Aqsa Sapphire",
+        titleBn = "আল-আকসা নীলাভ (Al-Aqsa Sapphire)",
+        subtitleEn = "Celestial cobalt blue & brushed silver",
+        subtitleBn = "ডোম অব দ্য রকের নীল ও রুপালি টাইলস"
+    ),
+    DESERT_ROSE_PARCHMENT(
+        titleEn = "Desert Rose Parchment",
+        titleBn = "মরু গোলাপ ও পাণ্ডুলিপি (Desert Rose)",
+        subtitleEn = "Andalusian terracotta & warm sand manuscript",
+        subtitleBn = "আন্দালুসিয়ান টেরাকোটা ও প্রাচীন পাণ্ডুলিপি"
+    )
+}
+
 enum class PrayerProviderMode { LOCAL_ADHAN, ONLINE_ALADHAN }
 enum class AsrJuristicSchool(val alAdhanSchoolCode: Int, val labelEn: String, val labelBn: String) {
     STANDARD(0, "Standard (Shafi'i, Maliki, Hanbali)", "স্ট্যান্ডার্ড (শাফেয়ী, মালেকী, হাম্বলী)"),
@@ -75,6 +108,7 @@ data class UserPreferencesState(
     val onboardingCompleted: Boolean = false,
     val languageCode: String = "en", // "en" default, instant switch to "bn"
     val themePreference: ThemePreference = ThemePreference.SYSTEM,
+    val colorTheme: IslamicColorTheme = IslamicColorTheme.MADINAH_EMERALD,
     val cityName: String = "Dhaka",
     val countryName: String = "Bangladesh",
     val latitude: Double = 23.8103,
@@ -119,6 +153,7 @@ class UserPreferencesRepository(private val dataStore: DataStore<Preferences>) {
         val ONBOARDING_COMPLETED = booleanPreferencesKey("onboarding_completed")
         val LANGUAGE_CODE = stringPreferencesKey("language_code")
         val THEME_PREF = stringPreferencesKey("theme_pref")
+        val COLOR_THEME = stringPreferencesKey("color_theme")
         val CITY_NAME = stringPreferencesKey("city_name")
         val COUNTRY_NAME = stringPreferencesKey("country_name")
         val LATITUDE = doublePreferencesKey("latitude")
@@ -162,6 +197,7 @@ class UserPreferencesRepository(private val dataStore: DataStore<Preferences>) {
             onboardingCompleted = prefs[Keys.ONBOARDING_COMPLETED] ?: false,
             languageCode = prefs[Keys.LANGUAGE_CODE] ?: "en",
             themePreference = runCatching { ThemePreference.valueOf(prefs[Keys.THEME_PREF] ?: "SYSTEM") }.getOrDefault(ThemePreference.SYSTEM),
+            colorTheme = runCatching { IslamicColorTheme.valueOf(prefs[Keys.COLOR_THEME] ?: "MADINAH_EMERALD") }.getOrDefault(IslamicColorTheme.MADINAH_EMERALD),
             cityName = prefs[Keys.CITY_NAME] ?: "Dhaka",
             countryName = prefs[Keys.COUNTRY_NAME] ?: "Bangladesh",
             latitude = prefs[Keys.LATITUDE] ?: 23.8103,
@@ -228,6 +264,10 @@ class UserPreferencesRepository(private val dataStore: DataStore<Preferences>) {
 
     suspend fun setThemePreference(theme: ThemePreference) {
         dataStore.edit { it[Keys.THEME_PREF] = theme.name }
+    }
+
+    suspend fun setColorTheme(colorTheme: IslamicColorTheme) {
+        dataStore.edit { it[Keys.COLOR_THEME] = colorTheme.name }
     }
 
     suspend fun updateLocation(

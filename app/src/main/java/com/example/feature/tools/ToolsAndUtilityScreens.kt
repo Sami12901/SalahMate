@@ -87,11 +87,13 @@ import com.example.feature.AppDestination
 import com.example.feature.SalahMateViewModel
 import com.example.ui.components.GlassmorphicContainerCard
 import com.example.ui.components.IslamicGeometricBackground
+import com.example.ui.components.ThemeSwatchGrid
 import com.example.ui.components.drawRubElHizbStar
 import com.example.ui.theme.CautionAmber
 import com.example.ui.theme.EmeraldPrimary
 import com.example.ui.theme.IlluminatedGold
 import com.example.ui.theme.IlluminatedGoldLight
+import com.example.ui.theme.LocalIslamicThemePalette
 import com.example.ui.theme.MidnightSapphire
 import com.example.ui.theme.SapphireElevated
 import com.example.ui.theme.VerifiedEmerald
@@ -108,6 +110,7 @@ fun ToolsHubScreen(
     viewModel: SalahMateViewModel,
     strings: BilingualStrings
 ) {
+    val themePalette = LocalIslamicThemePalette.current
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -122,13 +125,13 @@ fun ToolsHubScreen(
                     .clip(RoundedCornerShape(24.dp))
                     .background(
                         Brush.linearGradient(
-                            colors = listOf(MidnightSapphire, SapphireElevated, Color(0xFF0A4D3C))
+                            colors = themePalette.heroBannerGradient
                         )
                     )
             ) {
                 IslamicGeometricBackground(
                     modifier = Modifier.matchParentSize(),
-                    patternColor = IlluminatedGoldLight,
+                    patternColor = themePalette.accentGoldLight,
                     patternAlpha = 0.08f
                 )
                 Column(
@@ -140,7 +143,7 @@ fun ToolsHubScreen(
                     Text(
                         text = "✦  ISLAMIC INSTRUMENTS & UTILITIES  ✦",
                         style = MaterialTheme.typography.labelSmall,
-                        color = IlluminatedGoldLight,
+                        color = themePalette.accentGoldLight,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
@@ -245,6 +248,7 @@ fun QiblaCompassScreen(
     val prefs by viewModel.preferencesState.collectAsStateWithLifecycle()
     val qibla by viewModel.qiblaInfo.collectAsStateWithLifecycle()
     val compass by viewModel.compassState.collectAsStateWithLifecycle()
+    val themePalette = LocalIslamicThemePalette.current
     var numericModeOnly by remember { mutableStateOf(false) }
 
     val dialRotation = if (compass.hasSensor) -compass.deviceHeadingDegrees else 0f
@@ -267,13 +271,13 @@ fun QiblaCompassScreen(
                     .clip(RoundedCornerShape(28.dp))
                     .background(
                         Brush.verticalGradient(
-                            colors = listOf(MidnightSapphire, SapphireElevated, Color(0xFF0A4D3C))
+                            colors = themePalette.heroBannerGradient
                         )
                     )
             ) {
                 IslamicGeometricBackground(
                     modifier = Modifier.matchParentSize(),
-                    patternColor = IlluminatedGoldLight,
+                    patternColor = themePalette.accentGoldLight,
                     patternAlpha = 0.08f
                 )
                 Column(
@@ -286,7 +290,7 @@ fun QiblaCompassScreen(
                     Text(
                         text = "✦  GREAT-CIRCLE ASTROLABE QIBLA  ✦",
                         style = MaterialTheme.typography.labelSmall,
-                        color = IlluminatedGoldLight,
+                        color = themePalette.accentGoldLight,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
@@ -305,7 +309,7 @@ fun QiblaCompassScreen(
                             qibla.distanceToKaabaKm
                         ),
                         style = MaterialTheme.typography.titleMedium,
-                        color = IlluminatedGoldLight,
+                        color = themePalette.accentGoldLight,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.testTag("qibla_bearing_text")
                     )
@@ -378,14 +382,10 @@ fun QiblaCompassScreen(
                                 val radius = size.minDimension / 2f
                                 val center = Offset(size.width / 2f, size.height / 2f)
 
-                                // Deep Sapphire Radial Dial Face
+                                // Theme-Reactive Astrolabe Radial Dial Face
                                 drawCircle(
                                     brush = Brush.radialGradient(
-                                        colors = listOf(
-                                            Color(0xFF132D4E),
-                                            Color(0xFF0A192F),
-                                            Color(0xFF061020)
-                                        ),
+                                        colors = themePalette.qiblaDialCenterGradient,
                                         center = center,
                                         radius = radius
                                     ),
@@ -395,13 +395,13 @@ fun QiblaCompassScreen(
 
                                 // Outer Double Brass/Gold Astrolabe Bezel
                                 drawCircle(
-                                    color = IlluminatedGold.copy(alpha = 0.85f),
+                                    color = themePalette.accentGold.copy(alpha = 0.85f),
                                     radius = radius,
                                     center = center,
                                     style = Stroke(width = 4.dp.toPx())
                                 )
                                 drawCircle(
-                                    color = IlluminatedGoldLight.copy(alpha = 0.35f),
+                                    color = themePalette.accentGoldLight.copy(alpha = 0.35f),
                                     radius = radius - 10.dp.toPx(),
                                     center = center,
                                     style = Stroke(width = 1.5.dp.toPx())
@@ -411,7 +411,7 @@ fun QiblaCompassScreen(
                                 drawRubElHizbStar(
                                     center = center,
                                     outerRadius = radius * 0.52f,
-                                    color = IlluminatedGoldLight.copy(alpha = 0.16f),
+                                    color = themePalette.accentGoldLight.copy(alpha = 0.16f),
                                     strokeWidth = 1.5.dp.toPx()
                                 )
 
@@ -1288,33 +1288,79 @@ fun SettingsAndBackupScreen(
             OutlinedCard(modifier = Modifier.fillMaxWidth()) {
                 Column(
                     modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Text(
-                        text = strings.tr("Appearance & Language", "থিম ও ভাষা"),
+                        text = strings.tr("Appearance, 4 Islamic Color Themes & Language", "৪টি ইসলামিক কালার থিম, ডার্ক মোড ও ভাষা"),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
                     )
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        FilterChip(
-                            selected = prefs.languageCode == "en",
-                            onClick = { if (prefs.languageCode != "en") viewModel.toggleLanguage() },
-                            label = { Text("English") }
-                        )
-                        FilterChip(
-                            selected = prefs.languageCode == "bn",
-                            onClick = { if (prefs.languageCode != "bn") viewModel.toggleLanguage() },
-                            label = { Text("বাংলা (Bengali)") }
-                        )
-                    }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = strings.tr(
+                            "Select one of 4 handcrafted Islamic heritage themes. Every theme adapts automatically to Light and Dark mode.",
+                            "৪টি নান্দনিক ইসলামিক থিম থেকে আপনার পছন্দেরটি বেছে নিন। প্রতিটি থিম লাইট ও ডার্ক মোডে স্বয়ংক্রিয়ভাবে মানিয়ে নেয়।"
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    ThemeSwatchGrid(
+                        selectedTheme = prefs.colorTheme,
+                        isBn = prefs.languageCode == "bn",
+                        onSelectTheme = { viewModel.setColorTheme(it) }
+                    )
+
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.18f))
+
+                    Text(
+                        text = strings.tr("Brightness Mode (Light / Dark / System)", "উজ্জ্বলতা মোড (লাইট / ডার্ক / সিস্টেম)"),
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
                         ThemePreference.entries.forEach { t ->
                             FilterChip(
                                 selected = prefs.themePreference == t,
                                 onClick = { viewModel.setThemePreference(t) },
-                                label = { Text(t.name) }
+                                label = {
+                                    Text(
+                                        text = when (t) {
+                                            ThemePreference.SYSTEM -> strings.tr("System Auto", "সিস্টেম অটো")
+                                            ThemePreference.LIGHT -> strings.tr("Light Mode", "লাইট মোড")
+                                            ThemePreference.DARK -> strings.tr("Dark Mode", "ডার্ক মোড")
+                                        },
+                                        maxLines = 1,
+                                        softWrap = false
+                                    )
+                                }
                             )
                         }
+                    }
+
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.18f))
+
+                    Text(
+                        text = strings.tr("App Interface Language", "অ্যাপের ভাষা"),
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        FilterChip(
+                            selected = prefs.languageCode == "en",
+                            onClick = { if (prefs.languageCode != "en") viewModel.toggleLanguage() },
+                            label = { Text("English", maxLines = 1, softWrap = false) }
+                        )
+                        FilterChip(
+                            selected = prefs.languageCode == "bn",
+                            onClick = { if (prefs.languageCode != "bn") viewModel.toggleLanguage() },
+                            label = { Text("বাংলা (Bengali)", maxLines = 1, softWrap = false) }
+                        )
                     }
                 }
             }
@@ -1361,20 +1407,21 @@ fun SettingsAndBackupScreen(
         }
 
         item {
+            val themePalette = LocalIslamicThemePalette.current
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(22.dp))
                     .background(
                         Brush.linearGradient(
-                            colors = listOf(MidnightSapphire, SapphireElevated, Color(0xFF0A4D3C))
+                            colors = themePalette.heroBannerGradient
                         )
                     )
                     .testTag("developer_attribution_card")
             ) {
                 IslamicGeometricBackground(
                     modifier = Modifier.matchParentSize(),
-                    patternColor = IlluminatedGoldLight,
+                    patternColor = themePalette.accentGoldLight,
                     patternAlpha = 0.08f
                 )
                 Column(
@@ -1386,7 +1433,7 @@ fun SettingsAndBackupScreen(
                     Text(
                         text = "✦  100% FREE & OPEN-SOURCE ISLAMIC PROJECT  ✦",
                         style = MaterialTheme.typography.labelSmall,
-                        color = IlluminatedGoldLight,
+                        color = themePalette.accentGoldLight,
                         fontWeight = FontWeight.Bold
                     )
                     Text(

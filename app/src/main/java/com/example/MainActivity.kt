@@ -37,6 +37,7 @@ import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.LightMode
+import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -59,7 +60,9 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -94,6 +97,7 @@ import com.example.feature.worship.HadithLibraryScreen
 import com.example.feature.worship.IslamicLearningScreen
 import com.example.feature.worship.WorshipHubScreen
 import com.example.ui.components.AyahRosetteMedallion
+import com.example.ui.components.ThemePalettePickerDialog
 import com.example.ui.theme.SalahMateTheme
 
 class MainActivity : ComponentActivity() {
@@ -149,10 +153,25 @@ fun SalahMateApp(viewModel: SalahMateViewModel) {
     )
 
     val isSubScreen = currentDest !in topLevelNavItems.map { it.destination }
+    var showThemePaletteDialog by remember { mutableStateOf(false) }
 
-    SalahMateTheme(darkTheme = useDarkTheme) {
+    SalahMateTheme(
+        darkTheme = useDarkTheme,
+        colorTheme = prefs.colorTheme
+    ) {
         if (!prefs.onboardingCompleted) {
             FirstLaunchOnboardingDialog(viewModel = viewModel, strings = strings)
+        }
+
+        if (showThemePaletteDialog) {
+            ThemePalettePickerDialog(
+                selectedColorTheme = prefs.colorTheme,
+                selectedThemeMode = prefs.themePreference,
+                strings = strings,
+                onSelectColorTheme = { viewModel.setColorTheme(it) },
+                onSelectThemeMode = { viewModel.setThemePreference(it) },
+                onDismiss = { showThemePaletteDialog = false }
+            )
         }
 
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
@@ -241,6 +260,16 @@ fun SalahMateApp(viewModel: SalahMateViewModel) {
                                     modifier = Modifier.testTag("language_toggle_chip")
                                 )
                                 Spacer(modifier = Modifier.width(2.dp))
+                                IconButton(
+                                    onClick = { showThemePaletteDialog = true },
+                                    modifier = Modifier.testTag("theme_palette_button")
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Palette,
+                                        contentDescription = "Choose Islamic Color Theme",
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
+                                }
                                 IconButton(
                                     onClick = {
                                         val nextTheme = if (useDarkTheme) ThemePreference.LIGHT else ThemePreference.DARK

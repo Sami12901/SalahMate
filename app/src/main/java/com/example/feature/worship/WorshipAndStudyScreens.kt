@@ -88,6 +88,7 @@ import com.example.ui.components.GlassmorphicContainerCard
 import com.example.ui.components.GlassmorphicModalDialog
 import com.example.ui.components.IslamicGeometricBackground
 import com.example.ui.theme.AmiriQuranFontFamily
+import com.example.ui.theme.LocalIslamicThemePalette
 import com.example.ui.theme.VerifiedEmerald
 import kotlin.math.PI
 import kotlin.math.cos
@@ -98,6 +99,7 @@ fun WorshipHubScreen(
     viewModel: SalahMateViewModel,
     strings: BilingualStrings
 ) {
+    val themePalette = LocalIslamicThemePalette.current
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -112,21 +114,17 @@ fun WorshipHubScreen(
                     .clip(RoundedCornerShape(22.dp))
                     .background(
                         Brush.linearGradient(
-                            colors = listOf(
-                                Color(0xFF0A2E52),
-                                Color(0xFF0F4C81),
-                                Color(0xFF1E3A8A)
-                            )
+                            colors = themePalette.heroBannerGradient
                         )
                     )
                     .border(
-                        BorderStroke(1.dp, Color(0xFF93C5FD).copy(alpha = 0.6f)),
+                        BorderStroke(1.dp, themePalette.accentGoldLight.copy(alpha = 0.6f)),
                         RoundedCornerShape(22.dp)
                     )
             ) {
                 IslamicGeometricBackground(
                     modifier = Modifier.matchParentSize(),
-                    patternColor = Color.White,
+                    patternColor = themePalette.accentGoldLight,
                     patternAlpha = 0.08f
                 )
                 Column(
@@ -145,7 +143,7 @@ fun WorshipHubScreen(
                             "সকল মডিউল যাচাইকৃত সূত্রসহ সম্পূর্ণ অফলাইনে কাজ করে।"
                         ),
                         style = MaterialTheme.typography.bodyMedium,
-                        color = Color(0xFFBAE6FD)
+                        color = Color.White.copy(alpha = 0.85f)
                     )
                 }
             }
@@ -572,6 +570,7 @@ fun DigitalTasbihScreen(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
+                        val themePalette = LocalIslamicThemePalette.current
                         // Ornate Dhikr Header Banner
                         Box(
                             modifier = Modifier
@@ -579,15 +578,11 @@ fun DigitalTasbihScreen(
                                 .clip(RoundedCornerShape(18.dp))
                                 .background(
                                     Brush.linearGradient(
-                                        colors = listOf(
-                                            Color(0xFF0A2E52),
-                                            Color(0xFF0F4C81),
-                                            Color(0xFF17375E)
-                                        )
+                                        colors = themePalette.heroBannerGradient
                                     )
                                 )
                                 .border(
-                                    BorderStroke(1.dp, Color(0xFFFDE68A).copy(alpha = 0.45f)),
+                                    BorderStroke(1.dp, themePalette.accentGoldLight.copy(alpha = 0.55f)),
                                     RoundedCornerShape(18.dp)
                                 )
                                 .padding(horizontal = 16.dp, vertical = 14.dp),
@@ -602,7 +597,7 @@ fun DigitalTasbihScreen(
                                     fontFamily = AmiriQuranFontFamily,
                                     fontSize = 36.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFFFDE68A),
+                                    color = themePalette.accentGoldLight,
                                     textAlign = TextAlign.Center
                                 )
                                 Text(
@@ -614,7 +609,7 @@ fun DigitalTasbihScreen(
                                 Text(
                                     text = if (strings.isBn) activeSession.phraseMeaningBn else activeSession.phraseMeaningEn,
                                     style = MaterialTheme.typography.bodyMedium,
-                                    color = Color(0xFFBAE6FD),
+                                    color = Color.White.copy(alpha = 0.85f),
                                     textAlign = TextAlign.Center
                                 )
                             }
@@ -631,7 +626,6 @@ fun DigitalTasbihScreen(
                             ),
                             label = "tasbih_bead_phase"
                         )
-                        val primaryColor = MaterialTheme.colorScheme.primary
                         val outlineColor = MaterialTheme.colorScheme.outline
 
                         BoxWithConstraints(
@@ -676,7 +670,7 @@ fun DigitalTasbihScreen(
 
                                         if (isCurrentHead) {
                                             drawCircle(
-                                                color = Color(0xFFFDE68A).copy(alpha = 0.38f),
+                                                color = themePalette.accentGoldLight.copy(alpha = 0.42f),
                                                 radius = beadRadius * 1.65f,
                                                 center = beadCenter
                                             )
@@ -684,20 +678,12 @@ fun DigitalTasbihScreen(
 
                                         val beadBrush = when {
                                             isCurrentHead -> Brush.radialGradient(
-                                                colors = listOf(
-                                                    Color(0xFFFFFBEB),
-                                                    Color(0xFFF59E0B),
-                                                    Color(0xFFB45309)
-                                                ),
+                                                colors = themePalette.tasbihHeadBeadColors,
                                                 center = Offset(bx - beadRadius * 0.3f, by - beadRadius * 0.3f),
                                                 radius = beadRadius * 1.3f
                                             )
                                             isPassed -> Brush.radialGradient(
-                                                colors = listOf(
-                                                    Color(0xFFBAE6FD),
-                                                    primaryColor,
-                                                    Color(0xFF0A2E52)
-                                                ),
+                                                colors = themePalette.tasbihActiveBeadColors,
                                                 center = Offset(bx - beadRadius * 0.3f, by - beadRadius * 0.3f),
                                                 radius = beadRadius * 1.3f
                                             )
@@ -727,11 +713,7 @@ fun DigitalTasbihScreen(
                                         .clip(CircleShape)
                                         .background(
                                             Brush.radialGradient(
-                                                colors = listOf(
-                                                    Color(0xFF1E4E8C),
-                                                    Color(0xFF0F4C81),
-                                                    Color(0xFF082545)
-                                                )
+                                                colors = themePalette.tasbihMedallionGradient
                                             )
                                         )
                                         .border(
@@ -739,9 +721,9 @@ fun DigitalTasbihScreen(
                                                 2.dp,
                                                 Brush.linearGradient(
                                                     colors = listOf(
-                                                        Color(0xFFFDE68A),
-                                                        Color(0xFF93C5FD),
-                                                        Color(0xFFFDE68A)
+                                                        themePalette.accentGoldLight,
+                                                        themePalette.swatchPrimary,
+                                                        themePalette.accentGold
                                                     )
                                                 )
                                             ),
@@ -768,14 +750,14 @@ fun DigitalTasbihScreen(
                                         Text(
                                             text = "/ ${activeSession.targetCount}",
                                             style = MaterialTheme.typography.titleMedium,
-                                            color = Color(0xFFFDE68A),
+                                            color = themePalette.accentGoldLight,
                                             maxLines = 1
                                         )
                                         Spacer(modifier = Modifier.height(4.dp))
                                         Text(
                                             text = strings.tr("TAP TO COUNT", "গণনা করতে ট্যাপ করুন"),
                                             style = MaterialTheme.typography.labelSmall,
-                                            color = Color(0xFFBAE6FD),
+                                            color = Color.White.copy(alpha = 0.85f),
                                             fontWeight = FontWeight.Bold,
                                             maxLines = 1
                                         )

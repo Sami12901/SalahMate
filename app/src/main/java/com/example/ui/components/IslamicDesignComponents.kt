@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
@@ -25,8 +27,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material3.Button
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -55,8 +62,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.example.core.preferences.IslamicColorTheme
+import com.example.core.preferences.ThemePreference
+import com.example.core.utils.BilingualStrings
 import com.example.domain.prayer.DailyPrayerType
 import com.example.ui.theme.AmiriQuranFontFamily
+import com.example.ui.theme.IslamicThemePalette
+import com.example.ui.theme.LocalIslamicThemePalette
+import com.example.ui.theme.VerifiedEmerald
+import com.example.ui.theme.paletteForIslamicTheme
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
@@ -133,6 +147,7 @@ fun GlassmorphicModalDialog(
     confirmButton: @Composable RowScope.() -> Unit,
     content: @Composable ColumnScope.() -> Unit
 ) {
+    val themePalette = LocalIslamicThemePalette.current
     Dialog(
         onDismissRequest = onDismissRequest,
         properties = DialogProperties(
@@ -159,7 +174,7 @@ fun GlassmorphicModalDialog(
                     Brush.linearGradient(
                         colors = listOf(
                             MaterialTheme.colorScheme.primary.copy(alpha = 0.55f),
-                             Color(0xFFFDE68A).copy(alpha = 0.45f),
+                            themePalette.metallicHighlight.copy(alpha = 0.55f),
                             MaterialTheme.colorScheme.primary.copy(alpha = 0.55f)
                         )
                     )
@@ -170,16 +185,16 @@ fun GlassmorphicModalDialog(
                     .heightIn(max = maxDialogHeight)
             ) {
                 Column(modifier = Modifier.fillMaxWidth()) {
-                    // Ornate Sky-Gradient Dialog Header
+                    // Ornate Theme-Aware Dialog Header
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
                             .background(
                                 Brush.linearGradient(
                                     colors = listOf(
-                                        Color(0xFF0A2E52),
-                                        Color(0xFF0F4C81),
-                                        Color(0xFF17375E)
+                                        themePalette.heroStart,
+                                        themePalette.heroMid,
+                                        themePalette.heroEnd
                                     )
                                 )
                             )
@@ -202,7 +217,7 @@ fun GlassmorphicModalDialog(
                             AyahRosetteMedallion(
                                 numberText = badgeText,
                                 size = if (isCompact) 36.dp else 42.dp,
-                                tint = Color(0xFFFDE68A)
+                                tint = themePalette.metallicHighlight
                             )
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
@@ -218,7 +233,7 @@ fun GlassmorphicModalDialog(
                                     Text(
                                         text = subtitle,
                                         style = MaterialTheme.typography.bodySmall,
-                                        color = Color(0xFFBAE6FD),
+                                        color = Color.White.copy(alpha = 0.85f),
                                         maxLines = 2,
                                         overflow = TextOverflow.Ellipsis
                                     )
@@ -267,38 +282,243 @@ fun GlassmorphicModalDialog(
 }
 
 /**
- * Time-aware atmospheric sky gradient palette for the Home Hero Card and headers.
+ * Interactive 2-Column Visual Swatch Grid for selecting between the 4 Islamic Color Themes.
  */
+@Composable
+fun ThemeSwatchGrid(
+    selectedTheme: IslamicColorTheme,
+    isBn: Boolean,
+    onSelectTheme: (IslamicColorTheme) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val themes = IslamicColorTheme.entries
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        themes.chunked(2).forEach { rowPair ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                rowPair.forEach { themeItem ->
+                    val isSelected = selectedTheme == themeItem
+                    val palette = paletteForIslamicTheme(themeItem)
+                    val cardShape = RoundedCornerShape(18.dp)
+
+                    Surface(
+                        shape = cardShape,
+                        color = if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
+                        else MaterialTheme.colorScheme.surface,
+                        border = BorderStroke(
+                            width = if (isSelected) 2.dp else 1.dp,
+                            color = if (isSelected) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.outline.copy(alpha = 0.25f)
+                        ),
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(cardShape)
+                            .clickable { onSelectTheme(themeItem) }
+                            .testTag("theme_swatch_${themeItem.name.lowercase()}")
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(10.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            // Live Gradient & Swatch Orbs Banner
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(54.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(
+                                        Brush.linearGradient(
+                                            colors = listOf(
+                                                palette.heroStart,
+                                                palette.heroMid,
+                                                palette.heroEnd
+                                            )
+                                        )
+                                    )
+                            ) {
+                                IslamicGeometricBackground(
+                                    modifier = Modifier.matchParentSize(),
+                                    patternColor = Color.White,
+                                    patternAlpha = 0.12f
+                                )
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(horizontal = 10.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                                        palette.swatchPreviewColors.forEach { dotColor ->
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(16.dp)
+                                                    .clip(CircleShape)
+                                                    .background(dotColor)
+                                                    .border(1.dp, Color.White.copy(alpha = 0.7f), CircleShape)
+                                            )
+                                        }
+                                    }
+                                    if (isSelected) {
+                                        Icon(
+                                            imageVector = Icons.Default.CheckCircle,
+                                            contentDescription = "Selected Theme",
+                                            tint = palette.metallicHighlight,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+                                }
+                            }
+
+                            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                Text(
+                                    text = if (isBn) themeItem.titleBn else themeItem.titleEn,
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Text(
+                                    text = if (isBn) themeItem.subtitleBn else themeItem.subtitleEn,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+                    }
+                }
+                if (rowPair.size == 1) {
+                    Spacer(modifier = Modifier.weight(1f))
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Quick Theme Palette Picker Dialog accessible directly from the Top App Bar.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun ThemePalettePickerDialog(
+    selectedColorTheme: IslamicColorTheme,
+    selectedThemeMode: ThemePreference,
+    strings: BilingualStrings,
+    onSelectColorTheme: (IslamicColorTheme) -> Unit,
+    onSelectThemeMode: (ThemePreference) -> Unit,
+    onDismiss: () -> Unit
+) {
+    GlassmorphicModalDialog(
+        onDismissRequest = onDismiss,
+        title = strings.tr("Islamic Theme Studio", "ইসলামিক থিম ও রঙ নির্বাচন"),
+        subtitle = strings.tr(
+            "Choose from 4 sacred architectural palettes with Light & Dark adaptation",
+            "৪টি মনোমুগ্ধকর ইসলামিক থিম এবং লাইট/ডার্ক মোড নির্বাচন করুন"
+        ),
+        confirmButton = {
+            Button(
+                onClick = onDismiss,
+                shape = RoundedCornerShape(50),
+                modifier = Modifier.testTag("close_theme_picker_button")
+            ) {
+                Text(
+                    text = strings.tr("Done", "সম্পন্ন"),
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1
+                )
+            }
+        }
+    ) {
+        LazyColumn(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            item {
+                Text(
+                    text = strings.tr("1. Select Color Palette (4 Themes)", "১. কালার থিম নির্বাচন করুন (৪টি থিম)"),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                ThemeSwatchGrid(
+                    selectedTheme = selectedColorTheme,
+                    isBn = strings.isBn,
+                    onSelectTheme = onSelectColorTheme
+                )
+            }
+            item {
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = strings.tr("2. Display Mode (Light / Dark / System)", "২. ডিসপ্লে মোড (লাইট / ডার্ক / সিস্টেম)"),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    ThemePreference.entries.forEach { mode ->
+                        val modeLabel = when (mode) {
+                            ThemePreference.SYSTEM -> strings.tr("System Auto", "সিস্টেম অটো")
+                            ThemePreference.LIGHT -> strings.tr("Light Mode", "লাইট মোড")
+                            ThemePreference.DARK -> strings.tr("Dark Mode", "ডার্ক মোড")
+                        }
+                        FilterChip(
+                            selected = selectedThemeMode == mode,
+                            onClick = { onSelectThemeMode(mode) },
+                            label = {
+                                Text(
+                                    text = modeLabel,
+                                    maxLines = 1,
+                                    softWrap = false,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Theme- and time-aware atmospheric sky gradient palette for the Home Hero Card and headers.
+ */
+@Composable
 fun skyGradientForPrayer(
     currentPrayer: DailyPrayerType?,
-    nextPrayer: DailyPrayerType
+    nextPrayer: DailyPrayerType,
+    themePalette: IslamicThemePalette = LocalIslamicThemePalette.current
 ): Brush {
     val active = currentPrayer ?: nextPrayer
     val colors = when (active) {
-        DailyPrayerType.FAJR -> listOf(
-            Color(0xFF0A1931),
-            Color(0xFF153E75),
-            Color(0xFF2B4C7E)
+        DailyPrayerType.FAJR, DailyPrayerType.MAGHRIB -> listOf(
+            themePalette.heroStart,
+            themePalette.heroMid,
+            themePalette.heroEnd
         )
-        DailyPrayerType.SUNRISE, DailyPrayerType.DHUHR -> listOf(
-            Color(0xFF0A2E52),
-            Color(0xFF0F4C81),
-            Color(0xFF1A659E)
-        )
-        DailyPrayerType.ASR -> listOf(
-            Color(0xFF0B2545),
-            Color(0xFF134074),
-            Color(0xFF2C5784)
-        )
-        DailyPrayerType.MAGHRIB -> listOf(
-            Color(0xFF091326),
-            Color(0xFF16325B),
-            Color(0xFF284B7A)
+        DailyPrayerType.SUNRISE, DailyPrayerType.DHUHR, DailyPrayerType.ASR -> listOf(
+            themePalette.heroStart,
+            themePalette.heroMid,
+            themePalette.heroEnd
         )
         DailyPrayerType.ISHA -> listOf(
-            Color(0xFF050C1A),
-            Color(0xFF0B1F3A),
-            Color(0xFF163357)
+            themePalette.dialDeepCore,
+            themePalette.heroStart,
+            themePalette.heroMid
         )
     }
     return Brush.linearGradient(
@@ -364,7 +584,7 @@ fun DrawScope.drawRubElHizbStar(
 
 /**
  * Custom 180-degree animated prayer progress arc with glowing orbital marker,
- * dynamically sized via BoxWithConstraints for compact phones, large phones, and tablets.
+ * dynamically sized via BoxWithConstraints and styled with the active Islamic theme palette.
  */
 @Composable
 fun PrayerProgressArcGauge(
@@ -375,6 +595,7 @@ fun PrayerProgressArcGauge(
     modifier: Modifier = Modifier,
     countdownTestTag: String = "next_prayer_countdown_text"
 ) {
+    val themePalette = LocalIslamicThemePalette.current
     val animatedProgress by animateFloatAsState(
         targetValue = progressFraction.coerceIn(0.06f, 0.96f),
         animationSpec = tween(durationMillis = 700, easing = FastOutSlowInEasing),
@@ -460,14 +681,14 @@ fun PrayerProgressArcGauge(
                     )
                 }
 
-                // Active luminous progress arc
+                // Active luminous progress arc matching theme palette
                 val sweep = 180f * animatedProgress
                 drawArc(
                     brush = Brush.horizontalGradient(
                         colors = listOf(
-                            Color(0xFF93C5FD),
-                            Color(0xFFE0F2FE),
-                            Color(0xFFFDE68A)
+                            themePalette.metallicAccent,
+                            Color.White,
+                            themePalette.metallicHighlight
                         )
                     ),
                     startAngle = 180f,
@@ -485,7 +706,7 @@ fun PrayerProgressArcGauge(
                     arcCenter.y + (arcRadius * sin(indicatorAngleRad)).toFloat()
                 )
                 drawCircle(
-                    color = Color(0xFFFDE68A).copy(alpha = 0.35f),
+                    color = themePalette.metallicHighlight.copy(alpha = 0.38f),
                     radius = 12.dp.toPx(),
                     center = orbCenter
                 )
@@ -505,7 +726,7 @@ fun PrayerProgressArcGauge(
                 Text(
                     text = nextPrayerLabel,
                     style = MaterialTheme.typography.titleMedium,
-                    color = Color(0xFFBAE6FD),
+                    color = themePalette.metallicHighlight,
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -524,7 +745,7 @@ fun PrayerProgressArcGauge(
                 Text(
                     text = nextPrayerTimeText,
                     style = MaterialTheme.typography.labelLarge,
-                    color = Color(0xFFE2E8F0),
+                    color = Color.White.copy(alpha = 0.88f),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -682,7 +903,7 @@ fun AyahRosetteMedallion(
 }
 
 /**
- * Ornate Mushaf-style Surah Cartouche Header with Bismillah banner.
+ * Ornate Mushaf-style Surah Cartouche Header with Bismillah banner reactive to active theme.
  */
 @Composable
 fun MushafSurahHeaderBanner(
@@ -693,6 +914,7 @@ fun MushafSurahHeaderBanner(
     showBismillah: Boolean,
     modifier: Modifier = Modifier
 ) {
+    val themePalette = LocalIslamicThemePalette.current
     Box(
         modifier = modifier
             .fillMaxWidth()
@@ -700,9 +922,9 @@ fun MushafSurahHeaderBanner(
             .background(
                 Brush.linearGradient(
                     colors = listOf(
-                        Color(0xFF0A2E52),
-                        Color(0xFF0F4C81),
-                        Color(0xFF17375E)
+                        themePalette.heroStart,
+                        themePalette.heroMid,
+                        themePalette.heroEnd
                     )
                 )
             )
@@ -711,9 +933,9 @@ fun MushafSurahHeaderBanner(
                     1.5.dp,
                     Brush.linearGradient(
                         colors = listOf(
-                            Color(0xFF93C5FD).copy(alpha = 0.7f),
-                            Color(0xFFFDE68A).copy(alpha = 0.55f),
-                            Color(0xFF93C5FD).copy(alpha = 0.7f)
+                            themePalette.metallicAccent.copy(alpha = 0.7f),
+                            themePalette.metallicHighlight.copy(alpha = 0.55f),
+                            themePalette.metallicAccent.copy(alpha = 0.7f)
                         )
                     )
                 ),
@@ -741,7 +963,7 @@ fun MushafSurahHeaderBanner(
                 AyahRosetteMedallion(
                     numberText = "$surahNumber",
                     size = 42.dp,
-                    tint = Color(0xFFFDE68A)
+                    tint = themePalette.metallicHighlight
                 )
 
                 Column(
@@ -762,7 +984,7 @@ fun MushafSurahHeaderBanner(
                     Text(
                         text = revelationAndAyahs,
                         style = MaterialTheme.typography.labelLarge,
-                        color = Color(0xFFBAE6FD),
+                        color = Color.White.copy(alpha = 0.85f),
                         textAlign = TextAlign.Center,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
@@ -774,7 +996,7 @@ fun MushafSurahHeaderBanner(
                     fontFamily = AmiriQuranFontFamily,
                     fontSize = 26.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFFFDE68A),
+                    color = themePalette.metallicHighlight,
                     maxLines = 1
                 )
             }
@@ -783,7 +1005,7 @@ fun MushafSurahHeaderBanner(
                 Surface(
                     color = Color.White.copy(alpha = 0.10f),
                     shape = RoundedCornerShape(50),
-                    border = BorderStroke(1.dp, Color(0xFFFDE68A).copy(alpha = 0.35f)),
+                    border = BorderStroke(1.dp, themePalette.metallicHighlight.copy(alpha = 0.35f)),
                     modifier = Modifier.padding(top = 4.dp)
                 ) {
                     Text(

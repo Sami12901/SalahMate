@@ -22,6 +22,7 @@ import com.example.core.notifications.PrayerNotificationScheduler
 import com.example.core.notifications.ScheduledPrayerAlarmInfo
 import com.example.core.preferences.AsrJuristicSchool
 import com.example.core.preferences.CalculationMethodOption
+import com.example.core.preferences.IslamicColorTheme
 import com.example.core.preferences.NotificationSoundMode
 import com.example.core.preferences.PrayerProviderMode
 import com.example.core.preferences.PresetCity
@@ -261,6 +262,15 @@ class SalahMateViewModel(application: Application) : AndroidViewModel(applicatio
     fun setThemePreference(theme: ThemePreference) {
         viewModelScope.launch {
             prefsRepo.setThemePreference(theme)
+        }
+    }
+
+    fun setColorTheme(colorTheme: IslamicColorTheme) {
+        viewModelScope.launch {
+            prefsRepo.setColorTheme(colorTheme)
+            val isBn = preferencesState.value.languageCode == "bn"
+            val msg = if (isBn) "থিম পরিবর্তন করা হয়েছে: ${colorTheme.titleBn}" else "Theme applied: ${colorTheme.titleEn}"
+            showStatusMessage(msg)
         }
     }
 

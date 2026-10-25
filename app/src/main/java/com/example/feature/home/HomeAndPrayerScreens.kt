@@ -5,8 +5,10 @@ import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -93,6 +95,11 @@ import com.example.core.utils.BilingualStrings
 import com.example.domain.prayer.DailyPrayerType
 import com.example.feature.AppDestination
 import com.example.feature.SalahMateViewModel
+import com.example.ui.components.BentoFeatureCard
+import com.example.ui.components.GlassmorphicContainerCard
+import com.example.ui.components.IslamicGeometricBackground
+import com.example.ui.components.PrayerProgressArcGauge
+import com.example.ui.components.skyGradientForPrayer
 import com.example.ui.theme.VerifiedEmerald
 import java.util.Locale
 
@@ -304,35 +311,74 @@ fun HomeDashboardScreen(
     val todayReadingAyahs = readingHistory.firstOrNull { it.dateIso == schedule.dateIso }?.ayahsReadCount ?: 0
     val todayPrayerLog = prayerLogs.firstOrNull { it.dateIso == schedule.dateIso }
 
+    val arcProgress = remember(countdown.remainingHours, countdown.remainingMinutes, countdown.remainingSeconds) {
+        val totalRemainingSec = countdown.remainingHours * 3600L + countdown.remainingMinutes * 60L + countdown.remainingSeconds
+        val fourHoursSec = 4 * 3600L
+        val elapsedRatio = 1f - (totalRemainingSec.toFloat() / fourHoursSec.toFloat()).coerceIn(0f, 1f)
+        elapsedRatio.coerceIn(0.12f, 0.92f)
+    }
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
             .testTag("home_dashboard_list"),
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        // 1. Hero Prayer & Countdown Card with Sapphire & Silver Banner
+        // 1. Sky-Gradient & Islamic Geometric Hero Card with 180-Degree Prayer Progress Arc
         item {
             ElevatedCard(
-                shape = RoundedCornerShape(24.dp),
+                shape = RoundedCornerShape(26.dp),
+                elevation = CardDefaults.elevatedCardElevation(defaultElevation = 6.dp),
                 modifier = Modifier
                     .fillMaxWidth()
                     .testTag("hero_prayer_card")
             ) {
-                Box(modifier = Modifier.fillMaxWidth()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            skyGradientForPrayer(
+                                currentPrayer = countdown.currentPrayer,
+                                nextPrayer = countdown.nextPrayer
+                            )
+                        )
+                        .border(
+                            BorderStroke(
+                                1.2.dp,
+                                Brush.linearGradient(
+                                    colors = listOf(
+                                        Color(0xFF93C5FD).copy(alpha = 0.65f),
+                                        Color(0xFFFDE68A).copy(alpha = 0.45f),
+                                        Color(0xFF93C5FD).copy(alpha = 0.65f)
+                                    )
+                                )
+                            ),
+                            shape = RoundedCornerShape(26.dp)
+                        )
+                ) {
                     Image(
                         painter = painterResource(id = R.drawable.ic_hero_mosque_banner),
                         contentDescription = null,
                         contentScale = ContentScale.Crop,
+                        alpha = 0.35f,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(235.dp)
+                            .height(278.dp)
                     )
+                    IslamicGeometricBackground(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(278.dp),
+                        patternColor = Color.White,
+                        patternAlpha = 0.08f
+                    )
+
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(20.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                            .padding(horizontal = 18.dp, vertical = 16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -341,22 +387,28 @@ fun HomeDashboardScreen(
                         ) {
                             Column {
                                 Text(
-                                    text = schedule.readableGregorianDate,
-                                    style = MaterialTheme.typography.labelLarge,
-                                    color = Color(0xFFCBD5E1)
-                                )
-                                Text(
                                     text = if (strings.isBn) schedule.hijriDate.formattedBn else schedule.hijriDate.formattedEn,
                                     style = MaterialTheme.typography.titleMedium,
-                                    color = Color.White,
+                                    color = Color(0xFFFDE68A),
                                     fontWeight = FontWeight.Bold
                                 )
+                                Text(
+                                    text = schedule.readableGregorianDate,
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = Color(0xFFE2E8F0)
+                                )
                             }
+
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(50))
-                                    .background(Color(0x33FFFFFF))
+                                    .background(Color.White.copy(alpha = 0.16f))
+                                    .border(
+                                        1.dp,
+                                        Color.White.copy(alpha = 0.35f),
+                                        RoundedCornerShape(50)
+                                    )
                                     .clickable { showLocationDialog = true }
                                     .padding(horizontal = 12.dp, vertical = 6.dp)
                                     .testTag("change_city_chip")
@@ -364,79 +416,65 @@ fun HomeDashboardScreen(
                                 Icon(
                                     imageVector = Icons.Default.LocationOn,
                                     contentDescription = "Select City",
-                                    tint = Color.White,
+                                    tint = Color(0xFFFDE68A),
                                     modifier = Modifier.size(16.dp)
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text(
                                     text = prefs.cityName,
                                     style = MaterialTheme.typography.labelLarge,
-                                    color = Color.White
+                                    color = Color.White,
+                                    fontWeight = FontWeight.SemiBold
                                 )
                             }
                         }
 
-                        HorizontalDivider(color = Color(0x33CBD5E1))
+                        val nextName = if (strings.isBn) countdown.nextPrayer.titleBn else countdown.nextPrayer.titleEn
+                        PrayerProgressArcGauge(
+                            progressFraction = arcProgress,
+                            countdownText = countdown.formattedCountdown,
+                            nextPrayerLabel = "${strings.nextPrayer}: $nextName",
+                            nextPrayerTimeText = "${countdown.nextPrayerTimeFormatted} • ${strings.countdown}",
+                            countdownTestTag = "next_prayer_countdown_text"
+                        )
 
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.Bottom
-                        ) {
-                            Column {
-                                val currentPrayerText = countdown.currentPrayer?.let {
-                                    if (strings.isBn) it.titleBn else it.titleEn
-                                } ?: strings.tr("Duha / Post-Sunrise", "ইশরাক / চাশত")
-                                Text(
-                                    text = "${strings.currentPrayer}: $currentPrayerText",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = Color(0xFFBAE6FD)
-                                )
-                                val nextName = if (strings.isBn) countdown.nextPrayer.titleBn else countdown.nextPrayer.titleEn
-                                Text(
-                                    text = "${strings.nextPrayer}: $nextName",
-                                    style = MaterialTheme.typography.headlineMedium,
-                                    color = Color.White,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Text(
-                                    text = countdown.nextPrayerTimeFormatted,
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = Color(0xFFE2E8F0)
-                                )
-                            }
+                        HorizontalDivider(color = Color.White.copy(alpha = 0.18f))
 
-                            Column(horizontalAlignment = Alignment.End) {
-                                Text(
-                                    text = strings.countdown,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = Color(0xFFCBD5E1)
-                                )
-                                Text(
-                                    text = countdown.formattedCountdown,
-                                    style = MaterialTheme.typography.displayMedium,
-                                    color = Color.White,
-                                    fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.testTag("next_prayer_countdown_text")
-                                )
-                            }
-                        }
+                        val currentPrayerText = countdown.currentPrayer?.let {
+                            if (strings.isBn) it.titleBn else it.titleEn
+                        } ?: strings.tr("Duha / Post-Sunrise", "ইশরাক / চাশত")
 
-                        // Calculation Method & Source Provenance Row
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(50))
+                                    .background(Color.White.copy(alpha = 0.14f))
+                                    .padding(horizontal = 10.dp, vertical = 4.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(7.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(0xFF4ADE80))
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "${strings.currentPrayer}: $currentPrayerText",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = Color.White,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+
                             Text(
                                 text = "${prefs.calculationMethod.name} • ${prefs.asrSchool.name}",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = Color(0xFFCBD5E1)
-                            )
-                            Text(
-                                text = schedule.sourceLabel,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = if (schedule.isStaleCache) Color(0xFFFCD34D) else Color(0xFF93C5FD)
+                                color = if (schedule.isStaleCache) Color(0xFFFCD34D) else Color(0xFFBAE6FD)
                             )
                         }
                     }
@@ -444,11 +482,11 @@ fun HomeDashboardScreen(
             }
         }
 
-        // 2. Today's 5 Prayers + Sunrise, Sunset, Imsak & Midnight Strip
+        // 2. Today's 5 Prayers + Sun/Night Celestial Strip in Glassmorphic Card
         item {
-            OutlinedCard(
-                shape = RoundedCornerShape(20.dp),
-                modifier = Modifier.fillMaxWidth()
+            GlassmorphicContainerCard(
+                modifier = Modifier.fillMaxWidth(),
+                cornerRadius = 22.dp
             ) {
                 Column(
                     modifier = Modifier.padding(16.dp),
@@ -459,10 +497,20 @@ fun HomeDashboardScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = strings.todaysSchedule,
-                            style = MaterialTheme.typography.titleLarge
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.AccessTime,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = strings.todaysSchedule,
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                         TextButton(
                             onClick = { viewModel.navigateTo(AppDestination.PRAYER) },
                             modifier = Modifier.testTag("adjust_prayer_settings_btn")
@@ -473,53 +521,110 @@ fun HomeDashboardScreen(
                         }
                     }
 
-                    // Sun & Night Auxiliary Times Row
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(MaterialTheme.colorScheme.surfaceVariant)
-                            .padding(10.dp),
-                        horizontalArrangement = Arrangement.SpaceAround
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        AuxiliaryTimeBadge(strings.imsak, schedule.imsakFormatted)
-                        AuxiliaryTimeBadge(strings.sunrise, schedule.sunriseFormatted)
-                        AuxiliaryTimeBadge(strings.sunset, schedule.sunsetFormatted)
-                        AuxiliaryTimeBadge(strings.midnight, schedule.midnightFormatted)
+                        AuxiliaryTimeBadge(
+                            label = strings.imsak,
+                            timeText = schedule.imsakFormatted,
+                            modifier = Modifier.weight(1f)
+                        )
+                        AuxiliaryTimeBadge(
+                            label = strings.sunrise,
+                            timeText = schedule.sunriseFormatted,
+                            modifier = Modifier.weight(1f)
+                        )
+                        AuxiliaryTimeBadge(
+                            label = strings.sunset,
+                            timeText = schedule.sunsetFormatted,
+                            modifier = Modifier.weight(1f)
+                        )
+                        AuxiliaryTimeBadge(
+                            label = strings.midnight,
+                            timeText = schedule.midnightFormatted,
+                            modifier = Modifier.weight(1f)
+                        )
                     }
 
-                    // 5 Daily Prayers List
                     schedule.entries.filter { it.isObligatory }.forEach { entry ->
                         val isNext = countdown.nextPrayer == entry.type
-                        val rowBg = if (isNext) {
-                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.65f)
+                        val isCurrent = countdown.currentPrayer == entry.type
+                        val rowShape = RoundedCornerShape(14.dp)
+                        val rowBg = when {
+                            isNext -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.72f)
+                            isCurrent -> MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.45f)
+                            else -> MaterialTheme.colorScheme.surface.copy(alpha = 0.55f)
+                        }
+                        val rowBorder = if (isNext) {
+                            BorderStroke(1.2.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.65f))
                         } else {
-                            Color.Transparent
+                            BorderStroke(0.5.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.15f))
+                        }
+                        val prayerIcon = when (entry.type) {
+                            DailyPrayerType.FAJR -> Icons.Default.WbTwilight
+                            DailyPrayerType.DHUHR -> Icons.Default.WbSunny
+                            DailyPrayerType.ASR -> Icons.Default.WbSunny
+                            DailyPrayerType.MAGHRIB -> Icons.Default.WbTwilight
+                            DailyPrayerType.ISHA -> Icons.Default.AccessTime
+                            DailyPrayerType.SUNRISE -> Icons.Default.WbSunny
                         }
 
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
+                                .clip(rowShape)
                                 .background(rowBg)
+                                .border(rowBorder, rowShape)
                                 .padding(horizontal = 12.dp, vertical = 10.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    imageVector = Icons.Default.AccessTime,
-                                    contentDescription = null,
-                                    tint = if (isNext) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(20.dp)
-                                )
+                                Box(
+                                    modifier = Modifier
+                                        .size(34.dp)
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(
+                                            if (isNext) MaterialTheme.colorScheme.primary
+                                            else MaterialTheme.colorScheme.surfaceVariant
+                                        ),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = prayerIcon,
+                                        contentDescription = null,
+                                        tint = if (isNext) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
                                 Spacer(modifier = Modifier.width(12.dp))
                                 Column {
-                                    Text(
-                                        text = if (strings.isBn) entry.type.titleBn else entry.type.titleEn,
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = if (isNext) FontWeight.Bold else FontWeight.Medium
-                                    )
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        Text(
+                                            text = if (strings.isBn) entry.type.titleBn else entry.type.titleEn,
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = if (isNext) FontWeight.Bold else FontWeight.SemiBold
+                                        )
+                                        if (isNext) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .clip(RoundedCornerShape(50))
+                                                    .background(MaterialTheme.colorScheme.primary)
+                                                    .padding(horizontal = 7.dp, vertical = 2.dp)
+                                            ) {
+                                                Text(
+                                                    text = strings.tr("NEXT", "পরবর্তী"),
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = MaterialTheme.colorScheme.onPrimary,
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                            }
+                                        }
+                                    }
                                     if (entry.adjustmentMinutes != 0) {
                                         val sign = if (entry.adjustmentMinutes > 0) "+" else ""
                                         Text(
@@ -558,7 +663,7 @@ fun HomeDashboardScreen(
                     }
 
                     Text(
-                        text = strings.timetableDisclaimer,
+                        text = "${schedule.sourceLabel} • ${strings.timetableDisclaimer}",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -566,12 +671,12 @@ fun HomeDashboardScreen(
             }
         }
 
-        // 3. Last-Read Quran & Daily Progress Card
+        // 3. Glassmorphic Last-Read Quran & Daily Worship Progress Card
         item {
-            Card(
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
-                modifier = Modifier.fillMaxWidth()
+            GlassmorphicContainerCard(
+                modifier = Modifier.fillMaxWidth(),
+                cornerRadius = 22.dp,
+                accentColor = VerifiedEmerald
             ) {
                 Column(
                     modifier = Modifier.padding(16.dp),
@@ -582,17 +687,30 @@ fun HomeDashboardScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.MenuBook,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                            Spacer(modifier = Modifier.width(10.dp))
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(44.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(MaterialTheme.colorScheme.primaryContainer),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.MenuBook,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
                             Column {
                                 Text(
                                     text = strings.tr("Last-Read Quran Position", "সর্বশেষ পঠিত কুরআন অবস্থান"),
-                                    style = MaterialTheme.typography.labelLarge
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                                 Text(
                                     text = "${prefs.lastReadSurahName} • Ayah ${prefs.lastReadAyahNumber}",
@@ -606,6 +724,7 @@ fun HomeDashboardScreen(
                                 viewModel.openSurah(prefs.lastReadSurahNumber)
                                 viewModel.navigateTo(AppDestination.QURAN)
                             },
+                            shape = RoundedCornerShape(50),
                             modifier = Modifier.testTag("resume_quran_button")
                         ) {
                             Text(strings.tr("Resume", "পড়ুন"))
@@ -619,16 +738,17 @@ fun HomeDashboardScreen(
                     ) {
                         Text(
                             text = strings.tr(
-                                "Daily Reading Goal: $todayReadingAyahs / ${prefs.dailyQuranGoalAyahs} Ayahs",
-                                "দৈনিক তিলাওয়াত লক্ষ্য: $todayReadingAyahs / ${prefs.dailyQuranGoalAyahs} আয়াত"
+                                "Daily Goal: $todayReadingAyahs / ${prefs.dailyQuranGoalAyahs} Ayahs",
+                                "দৈনিক তিলাওয়াত: $todayReadingAyahs / ${prefs.dailyQuranGoalAyahs} আয়াত"
                             ),
-                            style = MaterialTheme.typography.bodyMedium
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Medium
                         )
                         val completedPrayers = todayPrayerLog?.completedCount ?: 0
                         Text(
-                            text = strings.tr("Prayers Logged: $completedPrayers/5", "আজকের নামাজ লগ: $completedPrayers/৫"),
+                            text = strings.tr("Prayers Logged: $completedPrayers/5", "আজকের নামাজ: $completedPrayers/৫"),
                             style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.SemiBold,
+                            fontWeight = FontWeight.Bold,
                             color = VerifiedEmerald
                         )
                     }
@@ -643,71 +763,133 @@ fun HomeDashboardScreen(
             }
         }
 
-        // 4. Quick-Access Hub to All Islamic Modules
+        // 4. Balanced 2-Column Mobile Bento Grid for All Islamic Modules
         item {
-            Text(
-                text = strings.quickAccess,
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.padding(top = 4.dp)
-            )
-            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 2.dp, bottom = 6.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = strings.quickAccess,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = strings.tr("12 Offline-First Modules", "১২টি অফলাইন মডিউল"),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
 
             val quickActions = listOf(
-                QuickModuleItem(strings.navQuran, Icons.AutoMirrored.Filled.MenuBook, AppDestination.QURAN, "quick_quran"),
-                QuickModuleItem(strings.qibla, Icons.Default.Explore, AppDestination.QIBLA, "quick_qibla"),
-                QuickModuleItem(strings.dua, Icons.Default.Favorite, AppDestination.DUA, "quick_dua"),
-                QuickModuleItem(strings.tasbih, Icons.Default.TouchApp, AppDestination.TASBIH, "quick_tasbih"),
-                QuickModuleItem(strings.hadith, Icons.Default.AutoStories, AppDestination.HADITH, "quick_hadith"),
-                QuickModuleItem(strings.zakat, Icons.Default.Calculate, AppDestination.ZAKAT, "quick_zakat"),
-                QuickModuleItem(strings.ramadan, Icons.Default.WbTwilight, AppDestination.RAMADAN, "quick_ramadan"),
-                QuickModuleItem(strings.hifz, Icons.Default.School, AppDestination.HIFZ, "quick_hifz"),
-                QuickModuleItem(strings.calendar, Icons.Default.CalendarMonth, AppDestination.CALENDAR, "quick_calendar"),
-                QuickModuleItem(strings.tracker, Icons.Default.CheckCircle, AppDestination.PRAYER_TRACKER, "quick_tracker"),
-                QuickModuleItem(strings.learning, Icons.Default.WbSunny, AppDestination.LEARNING, "quick_learning"),
-                QuickModuleItem(strings.mosque, Icons.Default.Place, AppDestination.MOSQUE_FINDER, "quick_mosque")
+                QuickModuleItem(
+                    strings.navQuran,
+                    strings.tr("114 Surahs & Audio", "১১৪ সূরা ও অডিও"),
+                    Icons.AutoMirrored.Filled.MenuBook,
+                    AppDestination.QURAN,
+                    "quick_quran"
+                ),
+                QuickModuleItem(
+                    strings.qibla,
+                    strings.tr("Compass & Bearing", "মক্কার দিকনির্দেশ"),
+                    Icons.Default.Explore,
+                    AppDestination.QIBLA,
+                    "quick_qibla"
+                ),
+                QuickModuleItem(
+                    strings.dua,
+                    strings.tr("Daily Adhkar & Hisn", "সকাল-সন্ধ্যার দোয়া"),
+                    Icons.Default.Favorite,
+                    AppDestination.DUA,
+                    "quick_dua"
+                ),
+                QuickModuleItem(
+                    strings.tasbih,
+                    strings.tr("3D Bead Counter", "ডিজিটাল তাসবীহ"),
+                    Icons.Default.TouchApp,
+                    AppDestination.TASBIH,
+                    "quick_tasbih"
+                ),
+                QuickModuleItem(
+                    strings.hadith,
+                    strings.tr("Bukhari, Muslim & 40", "বিশুদ্ধ হাদিস সমগ্র"),
+                    Icons.Default.AutoStories,
+                    AppDestination.HADITH,
+                    "quick_hadith"
+                ),
+                QuickModuleItem(
+                    strings.zakat,
+                    strings.tr("2.5% Nisab Engine", "যাকাত ক্যালকুলেটর"),
+                    Icons.Default.Calculate,
+                    AppDestination.ZAKAT,
+                    "quick_zakat"
+                ),
+                QuickModuleItem(
+                    strings.ramadan,
+                    strings.tr("Suhoor & Iftar Times", "সাহরি ও ইফতার"),
+                    Icons.Default.WbTwilight,
+                    AppDestination.RAMADAN,
+                    "quick_ramadan"
+                ),
+                QuickModuleItem(
+                    strings.hifz,
+                    strings.tr("Memorization Tracker", "হিফজ ও রিভিশন"),
+                    Icons.Default.School,
+                    AppDestination.HIFZ,
+                    "quick_hifz"
+                ),
+                QuickModuleItem(
+                    strings.calendar,
+                    strings.tr("Hijri Dates & Events", "হিজরি ক্যালেন্ডার"),
+                    Icons.Default.CalendarMonth,
+                    AppDestination.CALENDAR,
+                    "quick_calendar"
+                ),
+                QuickModuleItem(
+                    strings.tracker,
+                    strings.tr("5-Waqt Daily Log", "নামাজ ট্র্যাকার"),
+                    Icons.Default.CheckCircle,
+                    AppDestination.PRAYER_TRACKER,
+                    "quick_tracker"
+                ),
+                QuickModuleItem(
+                    strings.learning,
+                    strings.tr("99 Names & Wudu", "আসমাউল হুসনা ও শিক্ষা"),
+                    Icons.Default.WbSunny,
+                    AppDestination.LEARNING,
+                    "quick_learning"
+                ),
+                QuickModuleItem(
+                    strings.mosque,
+                    strings.tr("Nearby Masjids Map", "নিকটস্থ মসজিদ"),
+                    Icons.Default.Place,
+                    AppDestination.MOSQUE_FINDER,
+                    "quick_mosque"
+                )
             )
 
-            FlowRow(
-                modifier = Modifier.fillMaxWidth(),
-                maxItemsInEachRow = 3,
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                quickActions.forEach { item ->
-                    OutlinedCard(
-                        onClick = { viewModel.navigateTo(item.destination) },
-                        shape = RoundedCornerShape(16.dp),
-                        modifier = Modifier
-                            .weight(1f)
-                            .testTag(item.testTag)
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                quickActions.chunked(2).forEach { pair ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 14.dp, horizontal = 8.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            Box(
+                        pair.forEach { item ->
+                            BentoFeatureCard(
+                                title = item.title,
+                                subtitle = item.subtitle,
+                                icon = item.icon,
+                                onClick = { viewModel.navigateTo(item.destination) },
                                 modifier = Modifier
-                                    .size(40.dp)
-                                    .clip(CircleShape)
-                                    .background(MaterialTheme.colorScheme.primaryContainer),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = item.icon,
-                                    contentDescription = item.title,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(22.dp)
-                                )
-                            }
-                            Text(
-                                text = item.title,
-                                style = MaterialTheme.typography.labelLarge,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
+                                    .weight(1f)
+                                    .testTag(item.testTag)
                             )
+                        }
+                        if (pair.size == 1) {
+                            Spacer(modifier = Modifier.weight(1f))
                         }
                     }
                 }
@@ -726,23 +908,43 @@ fun HomeDashboardScreen(
 
 private data class QuickModuleItem(
     val title: String,
+    val subtitle: String,
     val icon: ImageVector,
     val destination: AppDestination,
     val testTag: String
 )
 
 @Composable
-private fun AuxiliaryTimeBadge(label: String, timeText: String) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+private fun AuxiliaryTimeBadge(
+    label: String,
+    timeText: String,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = modifier
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.68f))
+            .border(
+                width = 0.8.dp,
+                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.18f),
+                shape = RoundedCornerShape(12.dp)
+            )
+            .padding(vertical = 8.dp, horizontal = 4.dp)
+    ) {
         Text(
             text = label,
             style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
         )
+        Spacer(modifier = Modifier.height(2.dp))
         Text(
             text = timeText,
             style = MaterialTheme.typography.labelLarge,
-            fontWeight = FontWeight.Bold
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary
         )
     }
 }

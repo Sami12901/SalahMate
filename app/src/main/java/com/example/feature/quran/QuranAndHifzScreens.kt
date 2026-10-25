@@ -5,7 +5,9 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -67,6 +69,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -79,6 +83,9 @@ import com.example.core.utils.BilingualStrings
 import com.example.data.quran.SurahCatalog
 import com.example.data.quran.SurahLoadResult
 import com.example.feature.SalahMateViewModel
+import com.example.ui.components.AyahRosetteMedallion
+import com.example.ui.components.GlassmorphicContainerCard
+import com.example.ui.components.MushafSurahHeaderBanner
 import com.example.ui.theme.AmiriQuranFontFamily
 import com.example.ui.theme.VerifiedEmerald
 
@@ -122,46 +129,94 @@ fun QuranReaderScreen(
             }
         }
 
-        // Persistent Audio Recitation Bar when active or preparing
+        // Floating Glassmorphic Audio Recitation Mini-Player when active or preparing
         if (audioState.isPlaying || audioState.isPreparing || audioState.errorMessage != null) {
-            Card(
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
-                shape = RoundedCornerShape(0.dp),
-                modifier = Modifier.fillMaxWidth()
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 6.dp)
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(
+                        Brush.linearGradient(
+                            colors = listOf(
+                                Color(0xFF0A2E52),
+                                Color(0xFF0F4C81),
+                                Color(0xFF1E3A8A)
+                            )
+                        )
+                    )
+                    .border(
+                        BorderStroke(1.dp, Color(0xFF93C5FD).copy(alpha = 0.65f)),
+                        RoundedCornerShape(18.dp)
+                    )
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                        .padding(horizontal = 14.dp, vertical = 10.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        val surahMeta = SurahCatalog.getSurahMeta(audioState.currentSurahNumber)
-                        Text(
-                            text = "${surahMeta.nameEn} • Ayah ${audioState.currentAyahNumber}/${audioState.totalAyahsInSurah}",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        AyahRosetteMedallion(
+                            numberText = "${audioState.currentAyahNumber}",
+                            size = 36.dp,
+                            tint = Color(0xFFFDE68A)
                         )
-                        Text(
-                            text = audioState.errorMessage ?: audioState.reciterLabel,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            val surahMeta = SurahCatalog.getSurahMeta(audioState.currentSurahNumber)
+                            Text(
+                                text = "${surahMeta.nameEn} • Ayah ${audioState.currentAyahNumber}/${audioState.totalAyahsInSurah}",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = audioState.errorMessage ?: audioState.reciterLabel,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color(0xFFBAE6FD)
+                            )
+                        }
                     }
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         if (audioState.isPreparing) {
-                            CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                strokeWidth = 2.dp,
+                                color = Color(0xFFFDE68A)
+                            )
                         } else {
-                            IconButton(onClick = { viewModel.quranRepo.togglePauseResume() }) {
+                            IconButton(
+                                onClick = { viewModel.quranRepo.togglePauseResume() },
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .background(Color.White.copy(alpha = 0.16f))
+                            ) {
                                 Icon(
                                     imageVector = if (audioState.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                                    contentDescription = "Play/Pause Audio"
+                                    contentDescription = "Play/Pause Audio",
+                                    tint = Color.White
                                 )
                             }
                         }
-                        IconButton(onClick = { viewModel.quranRepo.stopAudio() }) {
-                            Icon(Icons.Default.Stop, contentDescription = "Stop Audio")
+                        Spacer(modifier = Modifier.width(6.dp))
+                        IconButton(
+                            onClick = { viewModel.quranRepo.stopAudio() },
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(Color.White.copy(alpha = 0.12f))
+                        ) {
+                            Icon(
+                                Icons.Default.Stop,
+                                contentDescription = "Stop Audio",
+                                tint = Color(0xFFFCA5A5)
+                            )
                         }
                     }
                 }
@@ -223,59 +278,46 @@ fun QuranReaderScreen(
                             verticalArrangement = Arrangement.spacedBy(14.dp)
                         ) {
                             item {
-                                ElevatedCard(
-                                    shape = RoundedCornerShape(20.dp),
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Column(
-                                        modifier = Modifier.padding(16.dp),
-                                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                                    ) {
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.SpaceBetween,
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Column {
-                                                Text(
-                                                    text = "${state.surahMeta.number}. ${state.surahMeta.nameEn} (${if (strings.isBn) state.surahMeta.nameBn else state.surahMeta.meaningEn})",
-                                                    style = MaterialTheme.typography.headlineMedium,
-                                                    fontWeight = FontWeight.Bold
-                                                )
-                                                Text(
-                                                    text = "${state.surahMeta.revelationType} • ${state.surahMeta.ayahCount} Ayahs • Juz ${state.surahMeta.startJuz}",
-                                                    style = MaterialTheme.typography.bodyMedium,
-                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                                )
-                                            }
-                                            Text(
-                                                text = state.surahMeta.nameArabic,
-                                                fontFamily = AmiriQuranFontFamily,
-                                                fontSize = 28.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = MaterialTheme.colorScheme.primary
-                                            )
-                                        }
+                                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                    MushafSurahHeaderBanner(
+                                        surahNumber = state.surahMeta.number,
+                                        surahTitle = "${state.surahMeta.nameEn} (${if (strings.isBn) state.surahMeta.nameBn else state.surahMeta.meaningEn})",
+                                        surahArabicName = state.surahMeta.nameArabic,
+                                        revelationAndAyahs = "${state.surahMeta.revelationType} • ${state.surahMeta.ayahCount} Ayahs • Juz ${state.surahMeta.startJuz}",
+                                        showBismillah = state.surahMeta.number != 9
+                                    )
 
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.SpaceBetween,
-                                            verticalAlignment = Alignment.CenterVertically
+                                    GlassmorphicContainerCard(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        cornerRadius = 18.dp
+                                    ) {
+                                        Column(
+                                            modifier = Modifier.padding(14.dp),
+                                            verticalArrangement = Arrangement.spacedBy(8.dp)
                                         ) {
-                                            Button(
-                                                onClick = {
-                                                    viewModel.quranRepo.playAyahAudio(state.ayahs, 0, continuousSurah = true)
-                                                },
-                                                modifier = Modifier.testTag("play_surah_audio_btn")
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
                                             ) {
-                                                Icon(Icons.Default.PlayArrow, contentDescription = null)
-                                                Spacer(modifier = Modifier.width(6.dp))
-                                                Text(strings.tr("Play Surah Audio", "সূরা তিলাওয়াত শুনুন"))
+                                                Button(
+                                                    onClick = {
+                                                        viewModel.quranRepo.playAyahAudio(state.ayahs, 0, continuousSurah = true)
+                                                    },
+                                                    shape = RoundedCornerShape(50),
+                                                    modifier = Modifier.testTag("play_surah_audio_btn")
+                                                ) {
+                                                    Icon(Icons.Default.PlayArrow, contentDescription = null)
+                                                    Spacer(modifier = Modifier.width(6.dp))
+                                                    Text(strings.tr("Play Surah Audio", "সূরা তিলাওয়াত শুনুন"))
+                                                }
+                                                OutlinedButton(
+                                                    onClick = { showReaderSettings = !showReaderSettings },
+                                                    shape = RoundedCornerShape(50)
+                                                ) {
+                                                    Text(strings.tr("Font & Translations", "ফন্ট ও অনুবাদ"))
+                                                }
                                             }
-                                            OutlinedButton(onClick = { showReaderSettings = !showReaderSettings }) {
-                                                Text(strings.tr("Font & Translations", "ফন্ট ও অনুবাদ"))
-                                            }
-                                        }
 
                                         if (showReaderSettings) {
                                             HorizontalDivider()
@@ -333,11 +375,12 @@ fun QuranReaderScreen(
                                             }
                                         }
 
-                                        Text(
-                                            text = "${if (state.isFromOfflineCache) "Offline Cached Copy" else "Synced from AlQuran.cloud"} • ${state.attributionNotice}",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
+                                            Text(
+                                                text = "${if (state.isFromOfflineCache) "Offline Cached Copy" else "Synced from AlQuran.cloud"} • ${state.attributionNotice}",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -410,20 +453,11 @@ fun QuranReaderScreen(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(38.dp)
-                                            .clip(CircleShape)
-                                            .background(MaterialTheme.colorScheme.primaryContainer),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Text(
-                                            text = "${meta.number}",
-                                            style = MaterialTheme.typography.labelLarge,
-                                            fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.primary
-                                        )
-                                    }
+                                    AyahRosetteMedallion(
+                                        numberText = "${meta.number}",
+                                        size = 40.dp,
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
                                     Spacer(modifier = Modifier.width(12.dp))
                                     Column {
                                         Text(
@@ -705,83 +739,152 @@ private fun AyahStudyCard(
     onCopy: () -> Unit,
     onShare: () -> Unit
 ) {
-    OutlinedCard(
-        shape = RoundedCornerShape(18.dp),
+    GlassmorphicContainerCard(
+        cornerRadius = 20.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(MaterialTheme.colorScheme.primaryContainer)
-                        .padding(horizontal = 10.dp, vertical = 4.dp)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text(
-                        text = "${ayah.surahNumber}:${ayah.ayahNumberInSurah} • Juz ${ayah.juzNumber}",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Bold
+                    AyahRosetteMedallion(
+                        numberText = "${ayah.ayahNumberInSurah}",
+                        size = 38.dp,
+                        tint = MaterialTheme.colorScheme.primary
                     )
+                    Column {
+                        Text(
+                            text = "Ayah ${ayah.surahNumber}:${ayah.ayahNumberInSurah}",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "Juz ${ayah.juzNumber}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
 
-                Row {
-                    IconButton(onClick = onPlayAudio) {
-                        Icon(Icons.Default.PlayArrow, contentDescription = "Play Ayah Audio")
+                Row(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(50))
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f))
+                        .padding(horizontal = 4.dp)
+                ) {
+                    IconButton(onClick = onPlayAudio, modifier = Modifier.size(36.dp)) {
+                        Icon(
+                            Icons.Default.PlayArrow,
+                            contentDescription = "Play Ayah Audio",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
+                        )
                     }
-                    IconButton(onClick = onToggleBookmark) {
+                    IconButton(onClick = onToggleBookmark, modifier = Modifier.size(36.dp)) {
                         Icon(
                             imageVector = if (isBookmarked) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
                             contentDescription = "Bookmark Ayah",
-                            tint = if (isBookmarked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                            tint = if (isBookmarked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(19.dp)
                         )
                     }
-                    IconButton(onClick = onMarkLastRead) {
-                        Icon(Icons.Default.DoneAll, contentDescription = "Mark as Last Read")
+                    IconButton(onClick = onMarkLastRead, modifier = Modifier.size(36.dp)) {
+                        Icon(
+                            Icons.Default.DoneAll,
+                            contentDescription = "Mark as Last Read",
+                            tint = VerifiedEmerald,
+                            modifier = Modifier.size(19.dp)
+                        )
                     }
-                    IconButton(onClick = onCopy) {
-                        Icon(Icons.Default.ContentCopy, contentDescription = "Copy Ayah")
+                    IconButton(onClick = onCopy, modifier = Modifier.size(36.dp)) {
+                        Icon(
+                            Icons.Default.ContentCopy,
+                            contentDescription = "Copy Ayah",
+                            modifier = Modifier.size(18.dp)
+                        )
                     }
-                    IconButton(onClick = onShare) {
-                        Icon(Icons.Default.Share, contentDescription = "Share Ayah")
+                    IconButton(onClick = onShare, modifier = Modifier.size(36.dp)) {
+                        Icon(
+                            Icons.Default.Share,
+                            contentDescription = "Share Ayah",
+                            modifier = Modifier.size(18.dp)
+                        )
                     }
                 }
             }
 
-            // Vocalized Uthmani Arabic Text (Strictly Separated from Translation)
-            Text(
-                text = ayah.arabicUthmani,
-                fontFamily = AmiriQuranFontFamily,
-                fontSize = arabicFontSizeSp.sp,
-                lineHeight = (arabicFontSizeSp * 1.65f).sp,
-                textAlign = TextAlign.End,
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            if (showBengali && ayah.bengaliTranslation.isNotBlank()) {
-                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
+            // Mushaf-framed Vocalized Uthmani Arabic Text (Strictly Separated from Translation)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f))
+                    .padding(horizontal = 14.dp, vertical = 12.dp)
+            ) {
                 Text(
-                    text = ayah.bengaliTranslation,
-                    fontSize = translationFontSizeSp.sp,
-                    lineHeight = (translationFontSizeSp * 1.45f).sp,
-                    color = MaterialTheme.colorScheme.onSurface
+                    text = ayah.arabicUthmani,
+                    fontFamily = AmiriQuranFontFamily,
+                    fontSize = arabicFontSizeSp.sp,
+                    lineHeight = (arabicFontSizeSp * 1.72f).sp,
+                    textAlign = TextAlign.End,
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
 
+            if (showBengali && ayah.bengaliTranslation.isNotBlank()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.Top
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .width(3.dp)
+                            .height(22.dp)
+                            .clip(RoundedCornerShape(2.dp))
+                            .background(MaterialTheme.colorScheme.primary)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = ayah.bengaliTranslation,
+                        fontSize = translationFontSizeSp.sp,
+                        lineHeight = (translationFontSizeSp * 1.48f).sp,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+
             if (showEnglish && ayah.englishTranslation.isNotBlank()) {
-                Text(
-                    text = ayah.englishTranslation,
-                    fontSize = translationFontSizeSp.sp,
-                    lineHeight = (translationFontSizeSp * 1.45f).sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.Top
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .width(3.dp)
+                            .height(22.dp)
+                            .clip(RoundedCornerShape(2.dp))
+                            .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.55f))
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = ayah.englishTranslation,
+                        fontSize = translationFontSizeSp.sp,
+                        lineHeight = (translationFontSizeSp * 1.48f).sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
             }
         }
     }

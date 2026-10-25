@@ -54,3 +54,11 @@ val SilverOutlineDark = Color(0xFF334155)
 val VerifiedEmerald = Color(0xFF10B981)
 val CautionAmber = Color(0xFFF59E0B)
 val AlertCrimson = Color(0xFFEF4444)
+
+// Rich Islamic Geometric & Astrolabe Accents
+val MidnightSapphire = Color(0xFF071B34)
+val SapphireElevated = Color(0xFF0F355E)
+val IlluminatedGold = Color(0xFFD4AF37)
+val IlluminatedGoldLight = Color(0xFFF3E5AB)
+val EmeraldPrimary = Color(0xFF0D6E52)
+

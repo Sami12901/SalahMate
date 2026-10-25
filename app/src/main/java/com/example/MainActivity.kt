@@ -4,16 +4,29 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.MenuBook
@@ -27,11 +40,14 @@ import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.NavigationRail
 import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.Scaffold
@@ -44,11 +60,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.core.preferences.ThemePreference
@@ -73,6 +93,7 @@ import com.example.feature.worship.DuaAndAdhkarScreen
 import com.example.feature.worship.HadithLibraryScreen
 import com.example.feature.worship.IslamicLearningScreen
 import com.example.feature.worship.WorshipHubScreen
+import com.example.ui.components.AyahRosetteMedallion
 import com.example.ui.theme.SalahMateTheme
 
 class MainActivity : ComponentActivity() {
@@ -141,78 +162,142 @@ fun SalahMateApp(viewModel: SalahMateViewModel) {
                 contentWindowInsets = WindowInsets.safeDrawing,
                 snackbarHost = { SnackbarHost(snackbarHostState) },
                 topBar = {
-                    TopAppBar(
-                        colors = TopAppBarDefaults.topAppBarColors(
-                            containerColor = MaterialTheme.colorScheme.surface,
-                            titleContentColor = MaterialTheme.colorScheme.onSurface
-                        ),
-                        navigationIcon = {
-                            if (isSubScreen) {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        TopAppBar(
+                            colors = TopAppBarDefaults.topAppBarColors(
+                                containerColor = MaterialTheme.colorScheme.surface,
+                                titleContentColor = MaterialTheme.colorScheme.onSurface
+                            ),
+                            navigationIcon = {
+                                if (isSubScreen) {
+                                    IconButton(
+                                        onClick = { viewModel.navigateBack() },
+                                        modifier = Modifier
+                                            .padding(start = 4.dp)
+                                            .clip(CircleShape)
+                                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f))
+                                            .testTag("top_back_button")
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                            contentDescription = "Navigate Back"
+                                        )
+                                    }
+                                } else {
+                                    AyahRosetteMedallion(
+                                        numberText = "۞",
+                                        size = 34.dp,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.padding(start = 12.dp, end = 4.dp)
+                                    )
+                                }
+                            },
+                            title = {
+                                Column {
+                                    Text(
+                                        text = strings.appTitle,
+                                        style = MaterialTheme.typography.titleLarge.copy(fontSize = 19.sp),
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.testTag("app_top_title")
+                                    )
+                                    Text(
+                                        text = "${prefs.cityName} • ${prefs.calculationMethod.name}",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                            },
+                            actions = {
+                                FilterChip(
+                                    selected = prefs.languageCode == "bn",
+                                    onClick = { viewModel.toggleLanguage() },
+                                    shape = RoundedCornerShape(50),
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                                        selectedLabelColor = MaterialTheme.colorScheme.primary
+                                    ),
+                                    label = {
+                                        Text(
+                                            text = if (prefs.languageCode == "bn") "বাংলা" else "EN",
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    },
+                                    leadingIcon = {
+                                        Icon(
+                                            Icons.Default.Language,
+                                            contentDescription = "Switch Language",
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    },
+                                    modifier = Modifier.testTag("language_toggle_chip")
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
                                 IconButton(
-                                    onClick = { viewModel.navigateBack() },
-                                    modifier = Modifier.testTag("top_back_button")
+                                    onClick = {
+                                        val nextTheme = if (useDarkTheme) ThemePreference.LIGHT else ThemePreference.DARK
+                                        viewModel.setThemePreference(nextTheme)
+                                    },
+                                    modifier = Modifier.testTag("theme_toggle_button")
                                 ) {
                                     Icon(
-                                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                        contentDescription = "Navigate Back"
+                                        imageVector = if (useDarkTheme) Icons.Default.LightMode else Icons.Default.DarkMode,
+                                        contentDescription = "Toggle Dark/Light Theme",
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                                IconButton(
+                                    onClick = { viewModel.navigateTo(AppDestination.SETTINGS) },
+                                    modifier = Modifier.testTag("top_settings_button")
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Settings,
+                                        contentDescription = "Settings & Backup"
                                     )
                                 }
                             }
-                        },
-                        title = {
-                            Text(
-                                text = strings.appTitle,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.testTag("app_top_title")
-                            )
-                        },
-                        actions = {
-                            // Instant English / Bengali Language Switch
-                            FilterChip(
-                                selected = prefs.languageCode == "bn",
-                                onClick = { viewModel.toggleLanguage() },
-                                label = { Text(if (prefs.languageCode == "bn") "বাংলা" else "EN") },
-                                leadingIcon = {
-                                    Icon(Icons.Default.Language, contentDescription = "Switch Language")
-                                },
-                                modifier = Modifier.testTag("language_toggle_chip")
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            IconButton(
-                                onClick = {
-                                    val nextTheme = if (useDarkTheme) ThemePreference.LIGHT else ThemePreference.DARK
-                                    viewModel.setThemePreference(nextTheme)
-                                },
-                                modifier = Modifier.testTag("theme_toggle_button")
-                            ) {
-                                Icon(
-                                    imageVector = if (useDarkTheme) Icons.Default.LightMode else Icons.Default.DarkMode,
-                                    contentDescription = "Toggle Dark/Light Theme"
-                                )
-                            }
-                            IconButton(
-                                onClick = { viewModel.navigateTo(AppDestination.SETTINGS) },
-                                modifier = Modifier.testTag("top_settings_button")
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Settings,
-                                    contentDescription = "Settings & Backup"
-                                )
-                            }
-                        }
-                    )
+                        )
+                        HorizontalDivider(
+                            thickness = 1.dp,
+                            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f)
+                        )
+                    }
                 },
                 bottomBar = {
                     if (!isExpandedScreen) {
-                        NavigationBar {
-                            topLevelNavItems.forEach { item ->
-                                NavigationBarItem(
-                                    selected = currentDest == item.destination,
-                                    onClick = { viewModel.navigateTo(item.destination) },
-                                    icon = { Icon(item.icon, contentDescription = item.label) },
-                                    label = { Text(item.label) },
-                                    modifier = Modifier.testTag(item.testTag)
-                                )
+                        Column {
+                            HorizontalDivider(
+                                thickness = 1.dp,
+                                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)
+                            )
+                            NavigationBar(
+                                containerColor = MaterialTheme.colorScheme.surface,
+                                tonalElevation = 6.dp
+                            ) {
+                                topLevelNavItems.forEach { item ->
+                                    val isSelected = currentDest == item.destination
+                                    NavigationBarItem(
+                                        selected = isSelected,
+                                        onClick = { viewModel.navigateTo(item.destination) },
+                                        colors = NavigationBarItemDefaults.colors(
+                                            selectedIconColor = MaterialTheme.colorScheme.primary,
+                                            selectedTextColor = MaterialTheme.colorScheme.primary,
+                                            indicatorColor = MaterialTheme.colorScheme.primaryContainer
+                                        ),
+                                        icon = {
+                                            Icon(
+                                                imageVector = item.icon,
+                                                contentDescription = item.label
+                                            )
+                                        },
+                                        label = {
+                                            Text(
+                                                text = item.label,
+                                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                            )
+                                        },
+                                        modifier = Modifier.testTag(item.testTag)
+                                    )
+                                }
                             }
                         }
                     }
@@ -224,7 +309,9 @@ fun SalahMateApp(viewModel: SalahMateViewModel) {
                         .padding(innerPadding)
                 ) {
                     if (isExpandedScreen) {
-                        NavigationRail {
+                        NavigationRail(
+                            containerColor = MaterialTheme.colorScheme.surface
+                        ) {
                             topLevelNavItems.forEach { item ->
                                 NavigationRailItem(
                                     selected = currentDest == item.destination,
@@ -237,25 +324,38 @@ fun SalahMateApp(viewModel: SalahMateViewModel) {
                         }
                     }
 
-                    Box(modifier = Modifier.weight(1f).fillMaxSize()) {
-                        when (currentDest) {
-                            AppDestination.HOME -> HomeDashboardScreen(viewModel, strings)
-                            AppDestination.PRAYER -> PrayerEngineAndNotificationsScreen(viewModel, strings)
-                            AppDestination.QURAN -> QuranReaderScreen(viewModel, strings)
-                            AppDestination.WORSHIP -> WorshipHubScreen(viewModel, strings)
-                            AppDestination.TOOLS -> ToolsHubScreen(viewModel, strings)
-                            AppDestination.QIBLA -> QiblaCompassScreen(viewModel, strings)
-                            AppDestination.TASBIH -> DigitalTasbihScreen(viewModel, strings)
-                            AppDestination.DUA -> DuaAndAdhkarScreen(viewModel, strings)
-                            AppDestination.HADITH -> HadithLibraryScreen(viewModel, strings)
-                            AppDestination.HIFZ -> HifzTrackerScreen(viewModel, strings)
-                            AppDestination.RAMADAN -> RamadanScheduleScreen(viewModel, strings)
-                            AppDestination.CALENDAR -> HijriCalendarScreen(viewModel, strings)
-                            AppDestination.ZAKAT -> ZakatCalculatorScreen(viewModel, strings)
-                            AppDestination.PRAYER_TRACKER -> PrayerTrackerScreen(viewModel, strings)
-                            AppDestination.LEARNING -> IslamicLearningScreen(viewModel, strings)
-                            AppDestination.MOSQUE_FINDER -> MosqueFinderScreen(viewModel, strings)
-                            AppDestination.SETTINGS -> SettingsAndBackupScreen(viewModel, strings)
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxSize()
+                    ) {
+                        AnimatedContent(
+                            targetState = currentDest,
+                            transitionSpec = {
+                                fadeIn(animationSpec = tween(220)) togetherWith
+                                    fadeOut(animationSpec = tween(180))
+                            },
+                            label = "screen_transition"
+                        ) { targetDest ->
+                            when (targetDest) {
+                                AppDestination.HOME -> HomeDashboardScreen(viewModel, strings)
+                                AppDestination.PRAYER -> PrayerEngineAndNotificationsScreen(viewModel, strings)
+                                AppDestination.QURAN -> QuranReaderScreen(viewModel, strings)
+                                AppDestination.WORSHIP -> WorshipHubScreen(viewModel, strings)
+                                AppDestination.TOOLS -> ToolsHubScreen(viewModel, strings)
+                                AppDestination.QIBLA -> QiblaCompassScreen(viewModel, strings)
+                                AppDestination.TASBIH -> DigitalTasbihScreen(viewModel, strings)
+                                AppDestination.DUA -> DuaAndAdhkarScreen(viewModel, strings)
+                                AppDestination.HADITH -> HadithLibraryScreen(viewModel, strings)
+                                AppDestination.HIFZ -> HifzTrackerScreen(viewModel, strings)
+                                AppDestination.RAMADAN -> RamadanScheduleScreen(viewModel, strings)
+                                AppDestination.CALENDAR -> HijriCalendarScreen(viewModel, strings)
+                                AppDestination.ZAKAT -> ZakatCalculatorScreen(viewModel, strings)
+                                AppDestination.PRAYER_TRACKER -> PrayerTrackerScreen(viewModel, strings)
+                                AppDestination.LEARNING -> IslamicLearningScreen(viewModel, strings)
+                                AppDestination.MOSQUE_FINDER -> MosqueFinderScreen(viewModel, strings)
+                                AppDestination.SETTINGS -> SettingsAndBackupScreen(viewModel, strings)
+                            }
                         }
                     }
                 }

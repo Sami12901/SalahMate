@@ -23,11 +23,13 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Calculate
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.FileUpload
@@ -47,6 +49,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -59,12 +62,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.core.preferences.ThemePreference
@@ -77,12 +84,23 @@ import com.example.domain.qibla.ZakatCalculatorEngine
 import com.example.domain.qibla.ZakatInputModel
 import com.example.feature.AppDestination
 import com.example.feature.SalahMateViewModel
+import com.example.ui.components.GlassmorphicContainerCard
+import com.example.ui.components.IslamicGeometricBackground
+import com.example.ui.components.drawRubElHizbStar
 import com.example.ui.theme.CautionAmber
+import com.example.ui.theme.EmeraldPrimary
+import com.example.ui.theme.IlluminatedGold
+import com.example.ui.theme.IlluminatedGoldLight
+import com.example.ui.theme.MidnightSapphire
+import com.example.ui.theme.SapphireElevated
 import com.example.ui.theme.VerifiedEmerald
 import kotlinx.coroutines.launch
 import java.util.Calendar
 import java.util.Locale
 import java.util.TimeZone
+import kotlin.math.abs
+import kotlin.math.cos
+import kotlin.math.sin
 
 @Composable
 fun ToolsHubScreen(
@@ -97,11 +115,49 @@ fun ToolsHubScreen(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
-            Text(
-                text = strings.tr("Islamic Tools, Calendars & Settings", "ইসলামিক টুলস, ক্যালেন্ডার ও সেটিংস"),
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold
-            )
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(
+                        Brush.linearGradient(
+                            colors = listOf(MidnightSapphire, SapphireElevated, Color(0xFF0A4D3C))
+                        )
+                    )
+            ) {
+                IslamicGeometricBackground(
+                    modifier = Modifier.matchParentSize(),
+                    patternColor = IlluminatedGoldLight,
+                    patternAlpha = 0.08f
+                )
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text(
+                        text = "✦  ISLAMIC INSTRUMENTS & UTILITIES  ✦",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = IlluminatedGoldLight,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = strings.tr("Islamic Tools, Calendars & Settings", "ইসলামিক টুলস, ক্যালেন্ডার ও সেটিংস"),
+                        style = MaterialTheme.typography.headlineMedium,
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = strings.tr(
+                            "High-precision Qibla astrolabe, Zakat & Nisab engine, Hijri calendar, and JSON backup",
+                            "নির্ভুল কিবলা কম্পাস, যাকাত ও নিসাব ক্যালকুলেটর, হিজরি ক্যালেন্ডার ও ব্যাকআপ"
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.White.copy(alpha = 0.82f)
+                    )
+                }
+            }
         }
 
         val toolCards = listOf(
@@ -115,33 +171,68 @@ fun ToolsHubScreen(
         )
 
         items(toolCards) { (title, subtitle, dest) ->
-            OutlinedCard(
+            val iconForDest = when (dest) {
+                AppDestination.QIBLA -> Icons.Default.Explore
+                AppDestination.ZAKAT -> Icons.Default.Calculate
+                AppDestination.RAMADAN -> Icons.Default.WbTwilight
+                AppDestination.CALENDAR -> Icons.Default.CalendarMonth
+                AppDestination.PRAYER_TRACKER -> Icons.Default.CheckCircle
+                AppDestination.MOSQUE_FINDER -> Icons.Default.Place
+                else -> Icons.Default.Settings
+            }
+            GlassmorphicContainerCard(
                 onClick = { viewModel.navigateTo(dest) },
-                shape = RoundedCornerShape(18.dp),
+                accentColor = MaterialTheme.colorScheme.primary,
                 modifier = Modifier
                     .fillMaxWidth()
                     .testTag("tool_card_${dest.name.lowercase()}")
             ) {
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
+                    modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Row(
+                        modifier = Modifier.weight(1f),
+                        horizontalArrangement = Arrangement.spacedBy(14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(46.dp)
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                iconForDest,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                subtitle,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
-                    Icon(Icons.Default.Explore, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                    Icon(
+                        Icons.Default.ChevronRight,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary
+                    )
                 }
             }
         }
     }
 }
 
-// --- 2.9 Qibla Compass Screen ---
+// --- 2.9 Qibla Compass Screen (Ornate Astrolabe Dial) ---
 @Composable
 fun QiblaCompassScreen(
     viewModel: SalahMateViewModel,
@@ -153,8 +244,10 @@ fun QiblaCompassScreen(
     val compass by viewModel.compassState.collectAsStateWithLifecycle()
     var numericModeOnly by remember { mutableStateOf(false) }
 
-    val primaryColor = MaterialTheme.colorScheme.primary
-    val outlineColor = MaterialTheme.colorScheme.outline
+    val dialRotation = if (compass.hasSensor) -compass.deviceHeadingDegrees else 0f
+    val qiblaRelativeAngle = (qibla.bearingFromTrueNorthDegrees.toFloat() + dialRotation)
+    val normalizedDiff = ((qiblaRelativeAngle % 360f) + 360f) % 360f
+    val isAlignedWithKaaba = normalizedDiff <= 8f || normalizedDiff >= 352f
 
     LazyColumn(
         modifier = Modifier
@@ -165,19 +258,40 @@ fun QiblaCompassScreen(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         item {
-            ElevatedCard(
-                shape = RoundedCornerShape(24.dp),
-                modifier = Modifier.fillMaxWidth()
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(28.dp))
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(MidnightSapphire, SapphireElevated, Color(0xFF0A4D3C))
+                        )
+                    )
             ) {
+                IslamicGeometricBackground(
+                    modifier = Modifier.matchParentSize(),
+                    patternColor = IlluminatedGoldLight,
+                    patternAlpha = 0.08f
+                )
                 Column(
-                    modifier = Modifier.padding(20.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(20.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
+                    Text(
+                        text = "✦  GREAT-CIRCLE ASTROLABE QIBLA  ✦",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = IlluminatedGoldLight,
+                        fontWeight = FontWeight.Bold
+                    )
                     Text(
                         text = "${strings.qibla} • ${prefs.cityName}",
                         style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center
                     )
                     Text(
                         text = String.format(
@@ -188,15 +302,234 @@ fun QiblaCompassScreen(
                             qibla.distanceToKaabaKm
                         ),
                         style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.primary,
+                        color = IlluminatedGoldLight,
+                        textAlign = TextAlign.Center,
                         modifier = Modifier.testTag("qibla_bearing_text")
                     )
+
+                    // 2-Column Bento Telemetry Strip inside Hero
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(16.dp),
+                            color = Color.White.copy(alpha = 0.10f),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(12.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = strings.tr("TRUE NORTH BEARING", "উত্তর থেকে কোণ"),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = Color.White.copy(alpha = 0.72f)
+                                )
+                                Text(
+                                    text = String.format(Locale.US, "%.1f° %s", qibla.bearingFromTrueNorthDegrees, qibla.cardinalDirection),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                        Surface(
+                            shape = RoundedCornerShape(16.dp),
+                            color = Color.White.copy(alpha = 0.10f),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(12.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = strings.tr("MAKKAH DISTANCE", "মক্কার দূরত্ব"),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = Color.White.copy(alpha = 0.72f)
+                                )
+                                Text(
+                                    text = String.format(Locale.US, "%,.0f km", qibla.distanceToKaabaKm),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = IlluminatedGoldLight,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+
+                    if (!numericModeOnly) {
+                        // Ornate Astrolabe Qibla Dial
+                        Box(
+                            modifier = Modifier
+                                .size(276.dp)
+                                .padding(8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Canvas(modifier = Modifier.fillMaxSize()) {
+                                val radius = size.minDimension / 2f
+                                val center = Offset(size.width / 2f, size.height / 2f)
+
+                                // Deep Sapphire Radial Dial Face
+                                drawCircle(
+                                    brush = Brush.radialGradient(
+                                        colors = listOf(
+                                            Color(0xFF132D4E),
+                                            Color(0xFF0A192F),
+                                            Color(0xFF061020)
+                                        ),
+                                        center = center,
+                                        radius = radius
+                                    ),
+                                    radius = radius,
+                                    center = center
+                                )
+
+                                // Outer Double Brass/Gold Astrolabe Bezel
+                                drawCircle(
+                                    color = IlluminatedGold.copy(alpha = 0.85f),
+                                    radius = radius,
+                                    center = center,
+                                    style = Stroke(width = 4.dp.toPx())
+                                )
+                                drawCircle(
+                                    color = IlluminatedGoldLight.copy(alpha = 0.35f),
+                                    radius = radius - 10.dp.toPx(),
+                                    center = center,
+                                    style = Stroke(width = 1.5.dp.toPx())
+                                )
+
+                                // Subtle Center Rub el Hizb Sacred Geometry
+                                drawRubElHizbStar(
+                                    center = center,
+                                    outerRadius = radius * 0.52f,
+                                    color = IlluminatedGoldLight.copy(alpha = 0.16f),
+                                    strokeWidth = 1.5.dp.toPx()
+                                )
+
+                                // Rotating Compass Rose (72 degree ticks + Cardinal Pointers)
+                                rotate(degrees = dialRotation, pivot = center) {
+                                    for (deg in 0 until 360 step 5) {
+                                        val isCardinal = deg % 90 == 0
+                                        val isMajor = deg % 30 == 0
+                                        val tickLen = when {
+                                            isCardinal -> 18.dp.toPx()
+                                            isMajor -> 12.dp.toPx()
+                                            else -> 6.dp.toPx()
+                                        }
+                                        val angleRad = Math.toRadians((deg - 90).toDouble())
+                                        val outerR = radius - 12.dp.toPx()
+                                        val innerR = outerR - tickLen
+                                        val start = Offset(
+                                            x = center.x + (outerR * cos(angleRad)).toFloat(),
+                                            y = center.y + (outerR * sin(angleRad)).toFloat()
+                                        )
+                                        val end = Offset(
+                                            x = center.x + (innerR * cos(angleRad)).toFloat(),
+                                            y = center.y + (innerR * sin(angleRad)).toFloat()
+                                        )
+                                        drawLine(
+                                            color = when {
+                                                deg == 0 -> Color(0xFFFF6B6B) // True North Red/Coral marker
+                                                isCardinal -> IlluminatedGoldLight
+                                                isMajor -> Color.White.copy(alpha = 0.65f)
+                                                else -> Color.White.copy(alpha = 0.28f)
+                                            },
+                                            start = start,
+                                            end = end,
+                                            strokeWidth = if (isCardinal) 3.dp.toPx() else if (isMajor) 2.dp.toPx() else 1.dp.toPx(),
+                                            cap = StrokeCap.Round
+                                        )
+                                    }
+                                }
+
+                                // Ornate Qibla Pointer Needle pointing toward Makkah
+                                rotate(degrees = qiblaRelativeAngle, pivot = center) {
+                                    val needleTipY = center.y - radius + 24.dp.toPx()
+                                    val needleTailY = center.y + radius * 0.35f
+
+                                    // Needle Glow
+                                    drawLine(
+                                        color = VerifiedEmerald.copy(alpha = 0.35f),
+                                        start = Offset(center.x, needleTailY),
+                                        end = Offset(center.x, needleTipY),
+                                        strokeWidth = 14.dp.toPx(),
+                                        cap = StrokeCap.Round
+                                    )
+
+                                    // Sculpted Diamond Spearhead Path
+                                    val needlePath = Path().apply {
+                                        moveTo(center.x, needleTipY)
+                                        lineTo(center.x + 9.dp.toPx(), center.y - 14.dp.toPx())
+                                        lineTo(center.x, needleTailY)
+                                        lineTo(center.x - 9.dp.toPx(), center.y - 14.dp.toPx())
+                                        close()
+                                    }
+                                    drawPath(
+                                        path = needlePath,
+                                        brush = Brush.verticalGradient(
+                                            colors = listOf(IlluminatedGoldLight, VerifiedEmerald, EmeraldPrimary)
+                                        )
+                                    )
+
+                                    // Kaaba Medallion Orb at Tip
+                                    drawCircle(
+                                        color = if (isAlignedWithKaaba) VerifiedEmerald else IlluminatedGold,
+                                        radius = 13.dp.toPx(),
+                                        center = Offset(center.x, needleTipY + 6.dp.toPx())
+                                    )
+                                    drawCircle(
+                                        color = Color(0xFF0A192F),
+                                        radius = 6.dp.toPx(),
+                                        center = Offset(center.x, needleTipY + 6.dp.toPx())
+                                    )
+                                }
+
+                                // Center Astrolabe Pivot Hub
+                                drawCircle(
+                                    color = IlluminatedGold,
+                                    radius = 11.dp.toPx(),
+                                    center = center
+                                )
+                                drawCircle(
+                                    color = MidnightSapphire,
+                                    radius = 5.dp.toPx(),
+                                    center = center
+                                )
+                            }
+                        }
+
+                        // Alignment Status Pill
+                        Surface(
+                            shape = CircleShape,
+                            color = if (isAlignedWithKaaba) VerifiedEmerald.copy(alpha = 0.25f) else Color.White.copy(alpha = 0.12f)
+                        ) {
+                            Text(
+                                text = if (isAlignedWithKaaba) {
+                                    strings.tr("✓ Aligned with Sacred Kaaba", "✓ পবিত্র কাবার দিকে মুখ করা হয়েছে")
+                                } else {
+                                    strings.tr(
+                                        "Align gold-emerald pointer to the top apex (${String.format(Locale.US, "%.1f°", qibla.bearingFromTrueNorthDegrees)})",
+                                        "সোনালি-সবুজ কাঁটাটি উপরের শীর্ষবিন্দুতে মেলান (${String.format(Locale.US, "%.1f°", qibla.bearingFromTrueNorthDegrees)})"
+                                    )
+                                },
+                                style = MaterialTheme.typography.labelMedium,
+                                color = if (isAlignedWithKaaba) Color(0xFF80CBC4) else Color.White,
+                                fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                            )
+                        }
+                    }
 
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Text(strings.tr("Numeric Bearing Mode (No Sensor Needed)", "শুধু সংখ্যাসূচক ডিগ্রি মোড"))
+                        Text(
+                            strings.tr("Numeric Bearing Mode (No Sensor Needed)", "শুধু সংখ্যাসূচক ডিগ্রি মোড"),
+                            color = Color.White.copy(alpha = 0.9f),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
                         Switch(checked = numericModeOnly, onCheckedChange = { numericModeOnly = it })
                     }
 
@@ -219,68 +552,18 @@ fun QiblaCompassScreen(
                     Card(
                         colors = CardDefaults.cardColors(
                             containerColor = if (!compass.hasSensor || compass.reliability == CompassSensorReliability.LOW)
-                                CautionAmber.copy(alpha = 0.18f)
-                            else MaterialTheme.colorScheme.surfaceVariant
+                                CautionAmber.copy(alpha = 0.22f)
+                            else Color.White.copy(alpha = 0.12f)
                         ),
+                        shape = RoundedCornerShape(16.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(
                             text = sensorMsg,
                             style = MaterialTheme.typography.bodyMedium,
-                            modifier = Modifier.padding(12.dp)
+                            color = Color.White,
+                            modifier = Modifier.padding(14.dp)
                         )
-                    }
-
-                    if (!numericModeOnly) {
-                        val dialRotation = if (compass.hasSensor) -compass.deviceHeadingDegrees else 0f
-                        val qiblaRelativeAngle = (qibla.bearingFromTrueNorthDegrees.toFloat() + dialRotation)
-
-                        Box(
-                            modifier = Modifier
-                                .size(250.dp)
-                                .padding(12.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Canvas(modifier = Modifier.fillMaxSize()) {
-                                val radius = size.minDimension / 2f
-                                val center = Offset(size.width / 2f, size.height / 2f)
-
-                                // Outer Compass Ring
-                                drawCircle(
-                                    color = outlineColor,
-                                    radius = radius,
-                                    center = center,
-                                    style = Stroke(width = 6f)
-                                )
-
-                                // North Pointer on Rotating Dial
-                                rotate(degrees = dialRotation, pivot = center) {
-                                    drawLine(
-                                        color = outlineColor,
-                                        start = center,
-                                        end = Offset(center.x, center.y - radius + 16f),
-                                        strokeWidth = 5f
-                                    )
-                                }
-
-                                // Qibla Needle pointing toward Makkah
-                                rotate(degrees = qiblaRelativeAngle, pivot = center) {
-                                    drawLine(
-                                        color = primaryColor,
-                                        start = center,
-                                        end = Offset(center.x, center.y - radius + 8f),
-                                        strokeWidth = 12f
-                                    )
-                                    drawCircle(
-                                        color = VerifiedEmerald,
-                                        radius = 14f,
-                                        center = Offset(center.x, center.y - radius + 18f)
-                                    )
-                                }
-
-                                drawCircle(color = primaryColor, radius = 10f, center = center)
-                            }
-                        }
                     }
                 }
             }

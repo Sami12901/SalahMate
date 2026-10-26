@@ -25,6 +25,7 @@ import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
+import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
 data class NotificationDiagnostics(
@@ -53,15 +54,67 @@ object PrayerNotificationScheduler {
     const val ACTION_PRAYER_SNOOZE = "com.samiislam.salahmate.ACTION_PRAYER_SNOOZE"
     const val ACTION_PRAYER_DISMISS = "com.samiislam.salahmate.ACTION_PRAYER_DISMISS"
     const val ACTION_PRAYER_MARK_COMPLETED = "com.samiislam.salahmate.ACTION_PRAYER_MARK_COMPLETED"
+    const val ACTION_WORSHIP_REMINDER = "com.samiislam.salahmate.ACTION_WORSHIP_REMINDER"
 
     const val EXTRA_PRAYER_TYPE = "extra_prayer_type"
     const val EXTRA_PRAYER_NAME = "extra_prayer_name"
     const val EXTRA_PRAYER_TIME_TEXT = "extra_prayer_time_text"
     const val EXTRA_SOUND_MODE = "extra_sound_mode"
     const val EXTRA_IS_ADVANCE = "extra_is_advance"
+    const val EXTRA_INTERNAL_TOKEN = "extra_internal_token"
+    const val EXTRA_WORSHIP_REMINDER_TITLE = "extra_worship_reminder_title"
+    const val EXTRA_WORSHIP_REMINDER_BODY = "extra_worship_reminder_body"
+    const val EXTRA_WORSHIP_REMINDER_ID = "extra_worship_reminder_id"
 
-    // Deduplication map so AlarmManager + WorkManager fallback never double-fire for the same prayer window
+    private const val DEDUP_PREFS_NAME = "salahmate_alarm_dedup"
+    private const val KEY_INTERNAL_ALARM_TOKEN = "internal_alarm_secret_token"
+
+    // In-memory fast cache backed by persistent SharedPreferences so deduplication survives process restarts
     private val dispatchedSlotTimestamps = ConcurrentHashMap<String, Long>()
+
+    fun getOrCreateInternalAlarmToken(context: Context): String {
+        val sp = context.getSharedPreferences(DEDUP_PREFS_NAME, Context.MODE_PRIVATE)
+        val existing = sp.getString(KEY_INTERNAL_ALARM_TOKEN, null)
+        if (!existing.isNullOrBlank()) return existing
+        val generated = UUID.randomUUID().toString()
+        sp.edit().putString(KEY_INTERNAL_ALARM_TOKEN, generated).apply()
+        return generated
+    }
+
+    fun verifyInternalAlarmToken(context: Context, intent: Intent?): Boolean {
+        if (intent == null) return false
+        val expected = getOrCreateInternalAlarmToken(context)
+        val actual = intent.getStringExtra(EXTRA_INTERNAL_TOKEN)
+        return !actual.isNullOrBlank() && actual == expected
+    }
+
+    /**
+     * Checks whether the given slotKey was already dispatched within [windowMs] across either
+     * in-memory state or persistent SharedPreferences. If not, marks it dispatched and returns false.
+     */
+    @Synchronized
+    fun isDuplicateOrMarkDispatched(
+        context: Context,
+        slotKey: String,
+        nowMillis: Long = System.currentTimeMillis(),
+        windowMs: Long = 15 * 60_000L
+    ): Boolean {
+        val sp = context.getSharedPreferences(DEDUP_PREFS_NAME, Context.MODE_PRIVATE)
+        val memLast = dispatchedSlotTimestamps[slotKey]
+        val diskLast = sp.getLong(slotKey, 0L).takeIf { it > 0L }
+        val lastFired = maxOf(memLast ?: 0L, diskLast ?: 0L)
+        if (lastFired > 0L && (nowMillis - lastFired) in 0 until windowMs) {
+            return true
+        }
+        dispatchedSlotTimestamps[slotKey] = nowMillis
+        sp.edit().putLong(slotKey, nowMillis).apply()
+        return false
+    }
+
+    fun clearDeduplicationCacheForTesting(context: Context) {
+        dispatchedSlotTimestamps.clear()
+        context.getSharedPreferences(DEDUP_PREFS_NAME, Context.MODE_PRIVATE).edit().clear().apply()
+    }
 
     fun ensureChannelsCreated(context: Context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -198,8 +251,8 @@ object PrayerNotificationScheduler {
     }
 
     /**
-     * Schedules both Exact Waqt alarms (1000 + ordinal) and Advance Pre-Prayer Reminder alarms (1100 + ordinal)
-     * via AlarmManager, and coordinates WorkManager periodic & fallback workers for 100% offline reliability.
+     * Schedules both Exact Waqt alarms (1000 + ordinal), Advance Pre-Prayer Reminder alarms (1100 + ordinal),
+     * and optional independent Worship Reminders (1401..1403) via AlarmManager, and coordinates WorkManager.
      */
     fun scheduleDailyPrayerAlarms(
         context: Context,
@@ -210,6 +263,7 @@ object PrayerNotificationScheduler {
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager
         val now = System.currentTimeMillis()
         val scheduledTable = computeScheduledAlarmsTable(prefs, now)
+        val internalToken = getOrCreateInternalAlarmToken(context)
 
         if (alarmManager != null) {
             scheduledTable.forEach { row ->
@@ -218,7 +272,9 @@ object PrayerNotificationScheduler {
                 val advanceRequestCode = 1100 + prayerType.ordinal
 
                 val waqtIntent = Intent(context, PrayerAlarmReceiver::class.java).apply {
+                    setPackage(context.packageName)
                     action = ACTION_PRAYER_ALARM
+                    putExtra(EXTRA_INTERNAL_TOKEN, internalToken)
                     putExtra(EXTRA_PRAYER_TYPE, prayerType.name)
                     putExtra(EXTRA_PRAYER_NAME, prayerType.titleEn)
                     putExtra(EXTRA_PRAYER_TIME_TEXT, row.waqtTimeFormatted)
@@ -227,7 +283,9 @@ object PrayerNotificationScheduler {
                 }
 
                 val advanceIntent = Intent(context, PrayerAlarmReceiver::class.java).apply {
+                    setPackage(context.packageName)
                     action = ACTION_PRAYER_ALARM
+                    putExtra(EXTRA_INTERNAL_TOKEN, internalToken)
                     putExtra(EXTRA_PRAYER_TYPE, prayerType.name)
                     putExtra(EXTRA_PRAYER_NAME, prayerType.titleEn)
                     putExtra(EXTRA_PRAYER_TIME_TEXT, row.waqtTimeFormatted)
@@ -281,10 +339,91 @@ object PrayerNotificationScheduler {
                     alarmManager.cancel(cancelAdvancePi)
                 }
             }
+
+            // 3. Schedule or cancel independent optional Worship Reminders (Morning Adhkar, Evening Adhkar, Jumu'ah Surah Kahf)
+            scheduleOptionalWorshipReminders(context, alarmManager, prefs, scheduledTable, internalToken, now)
         }
 
         if (enqueueWorkManager) {
             PrayerWorkScheduler.enqueueDailySyncAndNextPrayerWork(context, prefs)
+        }
+    }
+
+    private fun scheduleOptionalWorshipReminders(
+        context: Context,
+        alarmManager: AlarmManager,
+        prefs: UserPreferencesState,
+        scheduledTable: List<ScheduledPrayerAlarmInfo>,
+        internalToken: String,
+        nowMillis: Long
+    ) {
+        val fajrRow = scheduledTable.find { it.prayerType == DailyPrayerType.FAJR }
+        val asrRow = scheduledTable.find { it.prayerType == DailyPrayerType.ASR }
+        val dhuhrRow = scheduledTable.find { it.prayerType == DailyPrayerType.DHUHR }
+
+        // Morning Adhkar: 25 minutes after Fajr
+        val morningIntent = Intent(context, PrayerAlarmReceiver::class.java).apply {
+            setPackage(context.packageName)
+            action = ACTION_WORSHIP_REMINDER
+            putExtra(EXTRA_INTERNAL_TOKEN, internalToken)
+            putExtra(EXTRA_WORSHIP_REMINDER_ID, 2401)
+            putExtra(EXTRA_WORSHIP_REMINDER_TITLE, "Morning Adhkar Reminder • সকালের যিকির")
+            putExtra(EXTRA_WORSHIP_REMINDER_BODY, "Take 3 minutes for post-Fajr Morning Adhkar (Ayatul Kursi, Sayyidul Istighfar & Three Quls).")
+        }
+        val morningPi = PendingIntent.getBroadcast(
+            context, 1401, morningIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        if (prefs.morningAdhkarReminderEnabled && fajrRow != null) {
+            val trigger = fajrRow.waqtTriggerMillis + 25 * 60_000L
+            if (trigger > nowMillis) scheduleAlarmSafely(alarmManager, trigger, morningPi)
+        } else {
+            alarmManager.cancel(morningPi)
+        }
+
+        // Evening Adhkar: 20 minutes after Asr
+        val eveningIntent = Intent(context, PrayerAlarmReceiver::class.java).apply {
+            setPackage(context.packageName)
+            action = ACTION_WORSHIP_REMINDER
+            putExtra(EXTRA_INTERNAL_TOKEN, internalToken)
+            putExtra(EXTRA_WORSHIP_REMINDER_ID, 2402)
+            putExtra(EXTRA_WORSHIP_REMINDER_TITLE, "Evening Adhkar Reminder • সন্ধ্যার যিকির")
+            putExtra(EXTRA_WORSHIP_REMINDER_BODY, "Pause for afternoon/evening Masnun Adhkar and protection supplications.")
+        }
+        val eveningPi = PendingIntent.getBroadcast(
+            context, 1402, eveningIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        if (prefs.eveningAdhkarReminderEnabled && asrRow != null) {
+            val trigger = asrRow.waqtTriggerMillis + 20 * 60_000L
+            if (trigger > nowMillis) scheduleAlarmSafely(alarmManager, trigger, eveningPi)
+        } else {
+            alarmManager.cancel(eveningPi)
+        }
+
+        // Jumu'ah Surah Al-Kahf: 45 minutes before Dhuhr on Fridays
+        val jumuahIntent = Intent(context, PrayerAlarmReceiver::class.java).apply {
+            setPackage(context.packageName)
+            action = ACTION_WORSHIP_REMINDER
+            putExtra(EXTRA_INTERNAL_TOKEN, internalToken)
+            putExtra(EXTRA_WORSHIP_REMINDER_ID, 2403)
+            putExtra(EXTRA_WORSHIP_REMINDER_TITLE, "Jumu'ah Sunnah • সূরা কাহফ ও দরূদ পাঠ")
+            putExtra(EXTRA_WORSHIP_REMINDER_BODY, "Recite Surah Al-Kahf and send abundant Salawat upon the Prophet (ﷺ) on this blessed Friday.")
+        }
+        val jumuahPi = PendingIntent.getBroadcast(
+            context, 1403, jumuahIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val tz = TimeZone.getTimeZone(prefs.timeZoneId)
+        if (prefs.jumuahKahfReminderEnabled && dhuhrRow != null) {
+            val cal = Calendar.getInstance(tz).apply {
+                timeInMillis = dhuhrRow.waqtTriggerMillis - 45 * 60_000L
+            }
+            var daysAdded = 0
+            while ((cal.get(Calendar.DAY_OF_WEEK) != Calendar.FRIDAY || cal.timeInMillis <= nowMillis) && daysAdded < 8) {
+                cal.add(Calendar.DAY_OF_YEAR, 1)
+                daysAdded++
+            }
+            scheduleAlarmSafely(alarmManager, cal.timeInMillis, jumuahPi)
+        } else {
+            alarmManager.cancel(jumuahPi)
         }
     }
 
@@ -297,8 +436,11 @@ object PrayerNotificationScheduler {
     ) {
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return
         val triggerMillis = System.currentTimeMillis() + (delayMinutes * 60_000L)
+        val internalToken = getOrCreateInternalAlarmToken(context)
         val intent = Intent(context, PrayerAlarmReceiver::class.java).apply {
+            setPackage(context.packageName)
             action = ACTION_PRAYER_ALARM
+            putExtra(EXTRA_INTERNAL_TOKEN, internalToken)
             putExtra(EXTRA_PRAYER_TYPE, prayerTypeName)
             putExtra(EXTRA_PRAYER_NAME, "$prayerName (Snoozed)")
             putExtra(EXTRA_PRAYER_TIME_TEXT, "In $delayMinutes min")
@@ -331,6 +473,44 @@ object PrayerNotificationScheduler {
         }
     }
 
+    fun showWorshipReminderNotification(
+        context: Context,
+        notificationId: Int,
+        title: String,
+        body: String
+    ) {
+        ensureChannelsCreated(context)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                return
+            }
+        }
+        val todayIso = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
+        val slotKey = "WORSHIP|$notificationId|$todayIso"
+        if (isDuplicateOrMarkDispatched(context, slotKey)) return
+
+        val openAppIntent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        val contentPendingIntent = PendingIntent.getActivity(
+            context,
+            notificationId,
+            openAppIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val notification = NotificationCompat.Builder(context, CHANNEL_ID_PRAYER)
+            .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
+            .setContentTitle(title)
+            .setContentText(body)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(body))
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setContentIntent(contentPendingIntent)
+            .setAutoCancel(true)
+            .build()
+
+        NotificationManagerCompat.from(context).notify(notificationId, notification)
+    }
+
     fun showPrayerNotification(
         context: Context,
         prayerName: String,
@@ -351,16 +531,13 @@ object PrayerNotificationScheduler {
             prayerName.startsWith(it.titleEn, ignoreCase = true)
         } ?: DailyPrayerType.FAJR
 
-        // Deduplicate non-test notifications within a 15-minute window so AlarmManager + WorkManager fallback never double-fire
+        // Cross-process persistent deduplication within a 15-minute window so AlarmManager + WorkManager never double-fire
         if (!isTestPreview) {
             val todayIso = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
             val slotKey = "${resolvedPrayerType.name}|$isAdvanceReminder|$todayIso|$prayerName"
-            val now = System.currentTimeMillis()
-            val lastFired = dispatchedSlotTimestamps[slotKey]
-            if (lastFired != null && (now - lastFired) < 15 * 60_000L) {
+            if (isDuplicateOrMarkDispatched(context, slotKey)) {
                 return
             }
-            dispatchedSlotTimestamps[slotKey] = now
         }
 
         if (soundMode == NotificationSoundMode.ADHAN_CHIME) {
@@ -373,6 +550,7 @@ object PrayerNotificationScheduler {
             else -> 2000 + resolvedPrayerType.ordinal
         }
         val channelId = if (soundMode == NotificationSoundMode.SILENT) CHANNEL_ID_SILENT else CHANNEL_ID_PRAYER
+        val internalToken = getOrCreateInternalAlarmToken(context)
 
         val openAppIntent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
@@ -385,7 +563,9 @@ object PrayerNotificationScheduler {
         )
 
         val markCompletedIntent = Intent(context, PrayerAlarmReceiver::class.java).apply {
+            setPackage(context.packageName)
             action = ACTION_PRAYER_MARK_COMPLETED
+            putExtra(EXTRA_INTERNAL_TOKEN, internalToken)
             putExtra(EXTRA_PRAYER_TYPE, resolvedPrayerType.name)
             putExtra(EXTRA_PRAYER_NAME, resolvedPrayerType.titleEn)
             putExtra("notif_id", notificationId)
@@ -398,7 +578,9 @@ object PrayerNotificationScheduler {
         )
 
         val snoozeIntent = Intent(context, PrayerAlarmReceiver::class.java).apply {
+            setPackage(context.packageName)
             action = ACTION_PRAYER_SNOOZE
+            putExtra(EXTRA_INTERNAL_TOKEN, internalToken)
             putExtra(EXTRA_PRAYER_TYPE, resolvedPrayerType.name)
             putExtra(EXTRA_PRAYER_NAME, prayerName)
             putExtra(EXTRA_SOUND_MODE, soundMode.name)
@@ -412,7 +594,9 @@ object PrayerNotificationScheduler {
         )
 
         val dismissIntent = Intent(context, PrayerAlarmReceiver::class.java).apply {
+            setPackage(context.packageName)
             action = ACTION_PRAYER_DISMISS
+            putExtra(EXTRA_INTERNAL_TOKEN, internalToken)
             putExtra("notif_id", notificationId)
         }
         val dismissPendingIntent = PendingIntent.getBroadcast(

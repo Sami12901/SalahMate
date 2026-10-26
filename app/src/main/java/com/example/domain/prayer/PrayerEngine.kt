@@ -4,7 +4,6 @@ import com.batoulapps.adhan.CalculationMethod
 import com.batoulapps.adhan.CalculationParameters
 import com.batoulapps.adhan.Coordinates
 import com.batoulapps.adhan.Madhab
-import com.batoulapps.adhan.Prayer
 import com.batoulapps.adhan.PrayerTimes
 import com.batoulapps.adhan.SunnahTimes
 import com.batoulapps.adhan.data.DateComponents
@@ -38,7 +37,9 @@ data class SinglePrayerEntry(
     val formatted12h: String,
     val formatted24h: String,
     val adjustmentMinutes: Int,
-    val isObligatory: Boolean = type != DailyPrayerType.SUNRISE
+    val isObligatory: Boolean = type != DailyPrayerType.SUNRISE,
+    val jamaahOffsetMinutes: Int = 0,
+    val jamaahFormatted12h: String = ""
 )
 
 data class DailyPrayerSchedule(
@@ -50,7 +51,7 @@ data class DailyPrayerSchedule(
     val timeZoneId: String,
     val method: CalculationMethodOption,
     val asrSchool: AsrJuristicSchool,
-    val sourceLabel: String, // e.g., "Local Adhan Engine (Offline)" or "AlAdhan API (Live)" or "AlAdhan API (Cached Offline)"
+    val sourceLabel: String, // e.g., "Adhan Kotlin Local Engine (Offline)" or "AlAdhan API (Live)" or "AlAdhan API (Cached Offline)"
     val isStaleCache: Boolean,
     val imsakFormatted: String,
     val sunriseFormatted: String,
@@ -210,13 +211,20 @@ object LocalAdhanCalculator {
         // Separate Imsak clearly from Fajr (precautionary margin before Fajr, default -10m)
         val imsakMillis = fajrMs + (prefs.imsakOffsetMin * 60_000L)
 
+        fun formatJamaah(waqtMillis: Long, jamaahOffsetMin: Int): String {
+            if (!prefs.showMosqueJamaah || jamaahOffsetMin <= 0) return ""
+            return fmt12.format(Date(waqtMillis + jamaahOffsetMin * 60_000L))
+        }
+
         val entries = listOf(
             SinglePrayerEntry(
                 type = DailyPrayerType.FAJR,
                 timeMillis = fajrMs,
                 formatted12h = fmt12.format(Date(fajrMs)),
                 formatted24h = fmt24.format(Date(fajrMs)),
-                adjustmentMinutes = prefs.fajrOffsetMin
+                adjustmentMinutes = prefs.fajrOffsetMin,
+                jamaahOffsetMinutes = prefs.fajrJamaahOffsetMin,
+                jamaahFormatted12h = formatJamaah(fajrMs, prefs.fajrJamaahOffsetMin)
             ),
             SinglePrayerEntry(
                 type = DailyPrayerType.SUNRISE,
@@ -224,35 +232,45 @@ object LocalAdhanCalculator {
                 formatted12h = fmt12.format(Date(sunriseMs)),
                 formatted24h = fmt24.format(Date(sunriseMs)),
                 adjustmentMinutes = prefs.sunriseOffsetMin,
-                isObligatory = false
+                isObligatory = false,
+                jamaahOffsetMinutes = 0,
+                jamaahFormatted12h = ""
             ),
             SinglePrayerEntry(
                 type = DailyPrayerType.DHUHR,
                 timeMillis = dhuhrMs,
                 formatted12h = fmt12.format(Date(dhuhrMs)),
                 formatted24h = fmt24.format(Date(dhuhrMs)),
-                adjustmentMinutes = prefs.dhuhrOffsetMin
+                adjustmentMinutes = prefs.dhuhrOffsetMin,
+                jamaahOffsetMinutes = prefs.dhuhrJamaahOffsetMin,
+                jamaahFormatted12h = formatJamaah(dhuhrMs, prefs.dhuhrJamaahOffsetMin)
             ),
             SinglePrayerEntry(
                 type = DailyPrayerType.ASR,
                 timeMillis = asrMs,
                 formatted12h = fmt12.format(Date(asrMs)),
                 formatted24h = fmt24.format(Date(asrMs)),
-                adjustmentMinutes = prefs.asrOffsetMin
+                adjustmentMinutes = prefs.asrOffsetMin,
+                jamaahOffsetMinutes = prefs.asrJamaahOffsetMin,
+                jamaahFormatted12h = formatJamaah(asrMs, prefs.asrJamaahOffsetMin)
             ),
             SinglePrayerEntry(
                 type = DailyPrayerType.MAGHRIB,
                 timeMillis = maghribMs,
                 formatted12h = fmt12.format(Date(maghribMs)),
                 formatted24h = fmt24.format(Date(maghribMs)),
-                adjustmentMinutes = prefs.maghribOffsetMin
+                adjustmentMinutes = prefs.maghribOffsetMin,
+                jamaahOffsetMinutes = prefs.maghribJamaahOffsetMin,
+                jamaahFormatted12h = formatJamaah(maghribMs, prefs.maghribJamaahOffsetMin)
             ),
             SinglePrayerEntry(
                 type = DailyPrayerType.ISHA,
                 timeMillis = ishaMs,
                 formatted12h = fmt12.format(Date(ishaMs)),
                 formatted24h = fmt24.format(Date(ishaMs)),
-                adjustmentMinutes = prefs.ishaOffsetMin
+                adjustmentMinutes = prefs.ishaOffsetMin,
+                jamaahOffsetMinutes = prefs.ishaJamaahOffsetMin,
+                jamaahFormatted12h = formatJamaah(ishaMs, prefs.ishaJamaahOffsetMin)
             )
         )
 
@@ -280,30 +298,38 @@ object LocalAdhanCalculator {
 
     /**
      * Computes the active prayer and countdown to the next obligatory prayer.
-     * Handles post-Isha midnight wrap-around by computing tomorrow's Fajr accurately.
+     * Handles post-Isha midnight wrap-around and cross-midnight date transitions deterministically.
      */
     fun computeNextPrayerStatus(
         todaySchedule: DailyPrayerSchedule,
         prefs: UserPreferencesState,
         nowMillis: Long = System.currentTimeMillis()
     ): NextPrayerStatus {
-        val obligatoryEntries = todaySchedule.entries.filter { it.isObligatory }
+        val tz = TimeZone.getTimeZone(prefs.timeZoneId)
+        val nowIso = SimpleDateFormat("yyyy-MM-dd", Locale.US).apply { timeZone = tz }.format(Date(nowMillis))
+        val effectiveSchedule = if (todaySchedule.dateIso == nowIso) {
+            todaySchedule
+        } else {
+            val nowCal = Calendar.getInstance(tz).apply { timeInMillis = nowMillis }
+            calculateLocalSchedule(prefs, nowCal)
+        }
+
+        val obligatoryEntries = effectiveSchedule.entries.filter { it.isObligatory }
         val nextToday = obligatoryEntries.firstOrNull { it.timeMillis > nowMillis }
 
         val currentPrayer: DailyPrayerType? = when {
-            nowMillis < (todaySchedule.prayerTimeFor(DailyPrayerType.FAJR)?.timeMillis ?: 0L) -> DailyPrayerType.ISHA
-            nowMillis < (todaySchedule.prayerTimeFor(DailyPrayerType.SUNRISE)?.timeMillis ?: 0L) -> DailyPrayerType.FAJR
-            nowMillis < (todaySchedule.prayerTimeFor(DailyPrayerType.DHUHR)?.timeMillis ?: 0L) -> null // Duha / Post-sunrise
-            nowMillis < (todaySchedule.prayerTimeFor(DailyPrayerType.ASR)?.timeMillis ?: 0L) -> DailyPrayerType.DHUHR
-            nowMillis < (todaySchedule.prayerTimeFor(DailyPrayerType.MAGHRIB)?.timeMillis ?: 0L) -> DailyPrayerType.ASR
-            nowMillis < (todaySchedule.prayerTimeFor(DailyPrayerType.ISHA)?.timeMillis ?: 0L) -> DailyPrayerType.MAGHRIB
+            nowMillis < (effectiveSchedule.prayerTimeFor(DailyPrayerType.FAJR)?.timeMillis ?: 0L) -> DailyPrayerType.ISHA
+            nowMillis < (effectiveSchedule.prayerTimeFor(DailyPrayerType.SUNRISE)?.timeMillis ?: 0L) -> DailyPrayerType.FAJR
+            nowMillis < (effectiveSchedule.prayerTimeFor(DailyPrayerType.DHUHR)?.timeMillis ?: 0L) -> null // Duha / Post-sunrise
+            nowMillis < (effectiveSchedule.prayerTimeFor(DailyPrayerType.ASR)?.timeMillis ?: 0L) -> DailyPrayerType.DHUHR
+            nowMillis < (effectiveSchedule.prayerTimeFor(DailyPrayerType.MAGHRIB)?.timeMillis ?: 0L) -> DailyPrayerType.ASR
+            nowMillis < (effectiveSchedule.prayerTimeFor(DailyPrayerType.ISHA)?.timeMillis ?: 0L) -> DailyPrayerType.MAGHRIB
             else -> DailyPrayerType.ISHA
         }
 
         val targetEntry: SinglePrayerEntry = if (nextToday != null) {
             nextToday
         } else {
-            val tz = TimeZone.getTimeZone(prefs.timeZoneId)
             val tomorrowCal = Calendar.getInstance(tz).apply {
                 timeInMillis = nowMillis
                 add(Calendar.DAY_OF_YEAR, 1)
@@ -506,10 +532,16 @@ class PrayerRepository(
                 DailyPrayerType.ISHA -> entity.isha
             }
             val onlineMillis = parseOnlineMillis(rawTime, localEntry.adjustmentMinutes, localEntry.timeMillis)
+            val jamaahStr = if (prefs.showMosqueJamaah && localEntry.isObligatory && localEntry.jamaahOffsetMinutes > 0) {
+                fmt12.format(Date(onlineMillis + localEntry.jamaahOffsetMinutes * 60_000L))
+            } else {
+                ""
+            }
             localEntry.copy(
                 timeMillis = onlineMillis,
                 formatted12h = fmt12.format(Date(onlineMillis)),
-                formatted24h = fmt24.format(Date(onlineMillis))
+                formatted24h = fmt24.format(Date(onlineMillis)),
+                jamaahFormatted12h = jamaahStr
             )
         }
 

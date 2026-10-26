@@ -60,6 +60,9 @@ interface SalahMateDao {
     @Query("SELECT * FROM reading_history ORDER BY dateIso DESC LIMIT 30")
     fun observeReadingHistory(): Flow<List<ReadingHistoryEntity>>
 
+    @Query("SELECT * FROM reading_history ORDER BY dateIso DESC")
+    suspend fun getAllReadingHistoryOnce(): List<ReadingHistoryEntity>
+
     @Query("SELECT * FROM reading_history WHERE dateIso = :dateIso LIMIT 1")
     suspend fun getReadingHistoryForDate(dateIso: String): ReadingHistoryEntity?
 

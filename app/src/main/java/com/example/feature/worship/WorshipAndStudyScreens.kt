@@ -939,7 +939,14 @@ fun IslamicLearningScreen(
     strings: BilingualStrings
 ) {
     BackHandler { viewModel.navigateBack() }
-    var selectedTab by remember { mutableIntStateOf(0) } // 0=Asma ul Husna, 1=Kalimas, 2=Ayatul Kursi, 3=Wudu Guide
+    var selectedTab by remember { mutableIntStateOf(0) } // 0=Asma ul Husna, 1=Kalimas, 2=Ayatul Kursi, 3=Wudu Guide, 4=Flashcards & Quiz
+
+    val flashcards = VerifiedIslamicContent.QURANIC_VOCAB_FLASHCARDS
+    var currentCardIdx by remember { mutableIntStateOf(0) }
+    var isCardFlipped by remember { mutableStateOf(false) }
+    var quizScore by remember { mutableIntStateOf(0) }
+    var quizAttempts by remember { mutableIntStateOf(0) }
+    var selectedQuizChoiceId by remember { mutableStateOf<Int?>(null) }
 
     Column(
         modifier = Modifier
@@ -951,12 +958,14 @@ fun IslamicLearningScreen(
                 strings.tr("Asma ul Husna", "আসমাউল হুসনা"),
                 strings.tr("Kalimas", "কালিমাসমূহ"),
                 strings.tr("Ayatul Kursi", "আয়াতুল কুরসি"),
-                strings.tr("Wudu Guide", "ওযু শিক্ষা")
+                strings.tr("Wudu Guide", "ওযু শিক্ষা"),
+                strings.tr("Flashcards & Quiz", "শব্দভাণ্ডার ও কুইজ")
             ).forEachIndexed { idx, title ->
                 Tab(
                     selected = selectedTab == idx,
                     onClick = { selectedTab = idx },
-                    text = { Text(title) }
+                    text = { Text(title, maxLines = 1) },
+                    modifier = Modifier.testTag("learning_tab_$idx")
                 )
             }
         }
@@ -1099,6 +1108,182 @@ fun IslamicLearningScreen(
                                     style = MaterialTheme.typography.labelSmall,
                                     color = VerifiedEmerald
                                 )
+                            }
+                        }
+                    }
+                }
+            }
+
+            4 -> {
+                val activeCard = flashcards[currentCardIdx.coerceIn(flashcards.indices)]
+                val quizChoices = remember(currentCardIdx) {
+                    val distractors = flashcards.filter { it.id != activeCard.id }.shuffled().take(3)
+                    (distractors + activeCard).shuffled()
+                }
+
+                LazyColumn(
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp),
+                    modifier = Modifier.testTag("flashcards_quiz_tab_content")
+                ) {
+                    item {
+                        ElevatedCard(
+                            onClick = { isCardFlipped = !isCardFlipped },
+                            shape = RoundedCornerShape(22.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("vocab_flashcard_card")
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(20.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Text(
+                                    text = strings.tr(
+                                        "Quranic Vocabulary Flashcard (${currentCardIdx + 1}/${flashcards.size}) • Tap to Flip",
+                                        "কুরআনিক শব্দভাণ্ডার ফ্ল্যাশকার্ড (${currentCardIdx + 1}/${flashcards.size}) • উল্টাতে ট্যাপ করুন"
+                                    ),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = activeCard.arabicWord,
+                                    fontFamily = AmiriQuranFontFamily,
+                                    fontSize = 44.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Text(
+                                    text = activeCard.transliteration,
+                                    style = MaterialTheme.typography.titleLarge,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                if (isCardFlipped) {
+                                    HorizontalDivider(modifier = Modifier.padding(vertical = 6.dp))
+                                    Text(
+                                        text = activeCard.meaningBn,
+                                        style = MaterialTheme.typography.headlineSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = VerifiedEmerald,
+                                        textAlign = TextAlign.Center
+                                    )
+                                    Text(
+                                        text = activeCard.meaningEn,
+                                        style = MaterialTheme.typography.titleMedium,
+                                        textAlign = TextAlign.Center
+                                    )
+                                    Text(
+                                        text = "Quranic Reference: ${activeCard.quranReference}",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                } else {
+                                    Text(
+                                        text = strings.tr("Tap card to reveal Bengali & English meaning", "বাংলা ও ইংরেজি অর্থ দেখতে কার্ডে ট্যাপ করুন"),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(top = 8.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    OutlinedButton(
+                                        onClick = {
+                                            currentCardIdx = if (currentCardIdx > 0) currentCardIdx - 1 else flashcards.lastIndex
+                                            isCardFlipped = false
+                                            selectedQuizChoiceId = null
+                                        }
+                                    ) {
+                                        Text(strings.tr("Previous", "পূর্ববর্তী"), maxLines = 1)
+                                    }
+                                    Button(
+                                        onClick = {
+                                            currentCardIdx = (currentCardIdx + 1) % flashcards.size
+                                            isCardFlipped = false
+                                            selectedQuizChoiceId = null
+                                        },
+                                        modifier = Modifier.testTag("next_flashcard_btn")
+                                    ) {
+                                        Text(strings.tr("Next Word", "পরবর্তী শব্দ"), maxLines = 1)
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    item {
+                        OutlinedCard(
+                            shape = RoundedCornerShape(20.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("vocab_quiz_card")
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(16.dp),
+                                verticalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = strings.tr("Quick Revision Quiz", "দ্রুত রিভিশন কুইজ"),
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        text = strings.tr("Score: $quizScore / $quizAttempts", "স্কোর: $quizScore / $quizAttempts"),
+                                        style = MaterialTheme.typography.labelLarge,
+                                        color = VerifiedEmerald,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                                Text(
+                                    text = strings.tr(
+                                        "Select the correct Bengali & English meaning for '${activeCard.arabicWord}' (${activeCard.transliteration}):",
+                                        "'${activeCard.arabicWord}' (${activeCard.transliteration}) শব্দের সঠিক অর্থ কোনটি?"
+                                    ),
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                                quizChoices.forEach { choice ->
+                                    val isSelected = selectedQuizChoiceId == choice.id
+                                    val isCorrect = choice.id == activeCard.id
+                                    OutlinedButton(
+                                        onClick = {
+                                            if (selectedQuizChoiceId == null) {
+                                                selectedQuizChoiceId = choice.id
+                                                quizAttempts++
+                                                if (choice.id == activeCard.id) quizScore++
+                                            }
+                                        },
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        val prefix = when {
+                                            selectedQuizChoiceId == null -> "• "
+                                            isCorrect -> "✓ "
+                                            isSelected -> "✗ "
+                                            else -> "• "
+                                        }
+                                        Text(
+                                            text = "$prefix${choice.meaningBn} — ${choice.meaningEn}",
+                                            fontWeight = if (selectedQuizChoiceId != null && isCorrect) FontWeight.Bold else FontWeight.Normal,
+                                            color = when {
+                                                selectedQuizChoiceId != null && isCorrect -> VerifiedEmerald
+                                                isSelected && !isCorrect -> MaterialTheme.colorScheme.error
+                                                else -> MaterialTheme.colorScheme.onSurface
+                                            }
+                                        )
+                                    }
+                                }
                             }
                         }
                     }

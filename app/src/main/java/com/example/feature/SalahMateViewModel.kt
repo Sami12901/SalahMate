@@ -6,6 +6,7 @@ import android.location.Geocoder
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.BuildConfig
+import com.example.core.database.BackupPreviewSummary
 import com.example.core.database.CachedAyahEntity
 import com.example.core.database.FavoriteItemEntity
 import com.example.core.database.HifzProgressEntity
@@ -31,7 +32,6 @@ import com.example.core.preferences.UserPreferencesRepository
 import com.example.core.preferences.UserPreferencesState
 import com.example.core.preferences.salahMateDataStore
 import com.example.data.hadith.VerifiedHadithItem
-import com.example.data.hadith.VerifiedIslamicContent
 import com.example.data.quran.QuranAudioPlaybackState
 import com.example.data.quran.QuranRepository
 import com.example.data.quran.SurahCatalog
@@ -60,6 +60,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Calendar
+import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
 
@@ -164,6 +165,10 @@ class SalahMateViewModel(application: Application) : AndroidViewModel(applicatio
     val favoriteItems: StateFlow<List<FavoriteItemEntity>> = dao.observeFavoriteItems()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    // --- Backup Preview State ---
+    private val _backupPreviewState = MutableStateFlow<BackupPreviewSummary?>(null)
+    val backupPreviewState: StateFlow<BackupPreviewSummary?> = _backupPreviewState.asStateFlow()
+
     // --- Optional Sunnah.com Live Hadith State ---
     private val _remoteHadiths = MutableStateFlow<List<VerifiedHadithItem>>(emptyList())
     val remoteHadiths: StateFlow<List<VerifiedHadithItem>> = _remoteHadiths.asStateFlow()
@@ -192,15 +197,25 @@ class SalahMateViewModel(application: Application) : AndroidViewModel(applicatio
             }
         }
 
-        // Isolated 1-second local clock ticker for countdown
+        // Isolated 1-second local clock ticker with automatic cross-midnight date rollover
         viewModelScope.launch {
             while (isActive) {
+                val nowMillis = System.currentTimeMillis()
                 val prefs = preferencesState.value
-                val schedule = _todaySchedule.value
+                val tz = TimeZone.getTimeZone(prefs.timeZoneId)
+                val nowIso = SimpleDateFormat("yyyy-MM-dd", Locale.US).apply { timeZone = tz }.format(Date(nowMillis))
+                var schedule = _todaySchedule.value
+                if (schedule.dateIso != nowIso) {
+                    schedule = prayerRepo.getScheduleForDate(prefs, Calendar.getInstance(tz).apply { timeInMillis = nowMillis })
+                    _todaySchedule.value = schedule
+                    _scheduledAlarmsTable.value = PrayerNotificationScheduler.computeScheduledAlarmsTable(prefs, nowMillis)
+                    PrayerNotificationScheduler.scheduleDailyPrayerAlarms(appContext, prefs)
+                    SalahMateWidgetProvider.updateAllWidgets(appContext)
+                }
                 _nextPrayerCountdown.value = LocalAdhanCalculator.computeNextPrayerStatus(
                     schedule,
                     prefs,
-                    System.currentTimeMillis()
+                    nowMillis
                 )
                 delay(1000L)
             }
@@ -366,6 +381,27 @@ class SalahMateViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
+    fun updateMosqueJamaahSettings(
+        showJamaah: Boolean,
+        fajrJamaahMin: Int,
+        dhuhrJamaahMin: Int,
+        asrJamaahMin: Int,
+        maghribJamaahMin: Int,
+        ishaJamaahMin: Int
+    ) {
+        viewModelScope.launch {
+            prefsRepo.updateMosqueJamaahSettings(
+                showJamaah = showJamaah,
+                fajrJamaahMin = fajrJamaahMin,
+                dhuhrJamaahMin = dhuhrJamaahMin,
+                asrJamaahMin = asrJamaahMin,
+                maghribJamaahMin = maghribJamaahMin,
+                ishaJamaahMin = ishaJamaahMin
+            )
+            showStatusMessage("Mosque Jama'ah timetable updated (kept separate from solar Waqt).")
+        }
+    }
+
     fun updateNotificationSettings(
         fajr: Boolean,
         dhuhr: Boolean,
@@ -381,6 +417,19 @@ class SalahMateViewModel(application: Application) : AndroidViewModel(applicatio
             PrayerNotificationScheduler.scheduleDailyPrayerAlarms(appContext, updatedPrefs)
             _scheduledAlarmsTable.value = PrayerNotificationScheduler.computeScheduledAlarmsTable(updatedPrefs)
             _notificationDiagnostics.value = PrayerNotificationScheduler.getDiagnostics(appContext)
+        }
+    }
+
+    fun updateWorshipReminders(
+        morningAdhkar: Boolean,
+        eveningAdhkar: Boolean,
+        jumuahKahf: Boolean
+    ) {
+        viewModelScope.launch {
+            prefsRepo.updateWorshipReminders(morningAdhkar, eveningAdhkar, jumuahKahf)
+            val updatedPrefs = prefsRepo.preferencesFlow.first()
+            PrayerNotificationScheduler.scheduleDailyPrayerAlarms(appContext, updatedPrefs)
+            showStatusMessage("Worship reminders (Morning/Evening Adhkar & Friday Surah Kahf) updated.")
         }
     }
 
@@ -422,7 +471,7 @@ class SalahMateViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
-    // --- Quran Reader & Offline Downloads ---
+    // --- Quran Reader, Audio Repeat/Range & Offline Downloads ---
     fun openSurah(surahNumber: Int, forceRefresh: Boolean = false) {
         viewModelScope.launch {
             _activeSurahLoadState.value = SurahLoadResult.Loading
@@ -433,6 +482,20 @@ class SalahMateViewModel(application: Application) : AndroidViewModel(applicatio
                 recordDailyReadingProgress(res.surahMeta.number, 1, ayahsIncrement = 5)
             }
         }
+    }
+
+    fun setQuranAudioRepeatAndRange(
+        repeatCountPerAyah: Int = quranAudioState.value.repeatCountPerAyah,
+        rangeStartAyah: Int = quranAudioState.value.rangeStartAyah,
+        rangeEndAyah: Int = quranAudioState.value.rangeEndAyah,
+        isRangeLoopEnabled: Boolean = quranAudioState.value.isRangeLoopEnabled
+    ) {
+        quranRepo.setAudioRepeatAndRange(
+            repeatCountPerAyah = repeatCountPerAyah,
+            rangeStartAyah = rangeStartAyah,
+            rangeEndAyah = rangeEndAyah,
+            isRangeLoopEnabled = isRangeLoopEnabled
+        )
     }
 
     fun markAyahAsLastRead(surahNumber: Int, surahNameEn: String, ayahNumber: Int) {
@@ -502,6 +565,13 @@ class SalahMateViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
+    fun updateDailyGoalsAndHifzInterval(dailyQuranAyahs: Int, dailyHifzAyahs: Int, hifzIntervalDays: Int) {
+        viewModelScope.launch {
+            prefsRepo.updateDailyGoalsAndHifzInterval(dailyQuranAyahs, dailyHifzAyahs, hifzIntervalDays)
+            showStatusMessage("Updated daily Quran goal ($dailyQuranAyahs Ayahs) & Hifz revision interval (${hifzIntervalDays}d).")
+        }
+    }
+
     fun downloadSurahOffline(surahNumber: Int) {
         quranRepo.startOfflineSurahDownload(viewModelScope, surahNumber)
         showStatusMessage("Downloading Surah #${surahNumber} for offline reading...")
@@ -519,12 +589,18 @@ class SalahMateViewModel(application: Application) : AndroidViewModel(applicatio
         surahNumber: Int,
         memorizedAyahs: Int,
         status: String,
-        notes: String
+        notes: String,
+        customIntervalDays: Int? = null
     ) {
         viewModelScope.launch {
             val meta = SurahCatalog.getSurahMeta(surahNumber)
+            val intervalDays = customIntervalDays ?: when (status) {
+                "NEEDS_REVISION" -> 1
+                "LEARNING" -> 3
+                else -> preferencesState.value.hifzReviewIntervalDays
+            }
             val nextReviewCal = Calendar.getInstance().apply {
-                add(Calendar.DAY_OF_YEAR, if (status == "MEMORIZED") 7 else 2)
+                add(Calendar.DAY_OF_YEAR, intervalDays.coerceIn(1, 90))
             }
             val nextDateIso = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(nextReviewCal.time)
             dao.upsertHifzProgress(
@@ -541,7 +617,7 @@ class SalahMateViewModel(application: Application) : AndroidViewModel(applicatio
                     lastReviewedMillis = System.currentTimeMillis()
                 )
             )
-            showStatusMessage("Updated Hifz status for ${meta.nameEn} ($status).")
+            showStatusMessage("Updated Hifz status for ${meta.nameEn} ($status • next review in ${intervalDays}d).")
         }
     }
 
@@ -741,18 +817,45 @@ class SalahMateViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
-    // --- Backup Export & Import ---
-    suspend fun exportUserDataJson(): String = withContext(Dispatchers.IO) {
-        UserDataBackupManager.exportToJsonString(dao)
+    // --- Transactional & Optional Encrypted Backup Export, Preview & Import ---
+    suspend fun exportUserDataJson(encryptionPassword: String? = null): String = withContext(Dispatchers.IO) {
+        UserDataBackupManager.exportToJsonString(
+            dao = dao,
+            prefsRepo = prefsRepo,
+            encryptionPassword = encryptionPassword
+        )
     }
 
-    fun importUserDataJson(jsonString: String) {
+    fun inspectBackupBeforeImport(jsonString: String, password: String? = null) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                val count = UserDataBackupManager.importFromJsonString(dao, jsonString)
-                showStatusMessage("Successfully imported $count user records from backup.")
+                val preview = UserDataBackupManager.inspectBackupPayload(dao, jsonString, password)
+                _backupPreviewState.value = preview
             } catch (e: Exception) {
-                showStatusMessage("Failed to import backup JSON: ${e.localizedMessage ?: "Invalid format"}")
+                _backupPreviewState.value = null
+                showStatusMessage("Backup inspection failed: ${e.localizedMessage ?: "Invalid format or wrong password"}")
+            }
+        }
+    }
+
+    fun clearBackupPreview() {
+        _backupPreviewState.value = null
+    }
+
+    fun importUserDataJson(jsonString: String, password: String? = null) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val count = UserDataBackupManager.importFromJsonString(
+                    db = db,
+                    dao = dao,
+                    jsonString = jsonString,
+                    prefsRepo = prefsRepo,
+                    password = password
+                )
+                _backupPreviewState.value = null
+                showStatusMessage("Successfully restored $count user records via atomic transaction.")
+            } catch (e: Exception) {
+                showStatusMessage("Failed to restore backup: ${e.localizedMessage ?: "Invalid format or password"}")
             }
         }
     }

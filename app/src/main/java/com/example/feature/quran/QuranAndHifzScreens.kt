@@ -303,7 +303,10 @@ fun QuranReaderScreen(
                                             ) {
                                                 Button(
                                                     onClick = {
-                                                        viewModel.quranRepo.playAyahAudio(state.ayahs, 0, continuousSurah = true)
+                                                        val startIdx = if (audioState.isRangeLoopEnabled) {
+                                                            state.ayahs.indexOfFirst { it.ayahNumberInSurah == audioState.rangeStartAyah }.coerceAtLeast(0)
+                                                        } else 0
+                                                        viewModel.quranRepo.playAyahAudio(state.ayahs, startIdx, continuousSurah = true)
                                                     },
                                                     shape = RoundedCornerShape(50),
                                                     modifier = Modifier.testTag("play_surah_audio_btn")
@@ -318,18 +321,92 @@ fun QuranReaderScreen(
                                                 }
                                                 OutlinedButton(
                                                     onClick = { showReaderSettings = !showReaderSettings },
-                                                    shape = RoundedCornerShape(50)
+                                                    shape = RoundedCornerShape(50),
+                                                    modifier = Modifier.testTag("toggle_reader_settings_btn")
                                                 ) {
                                                     Text(
-                                                        text = strings.tr("Font & Translations", "ফন্ট ও অনুবাদ"),
+                                                        text = strings.tr("Repeat, Loop & Fonts", "রিপিট, লুপ ও ফন্ট"),
                                                         maxLines = 1,
                                                         softWrap = false
                                                     )
                                                 }
                                             }
 
+                                            // Compact Hifz Audio Repeat & Range Loop Strip
+                                            FlowRow(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .testTag("quran_repeat_controls_row"),
+                                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                                verticalArrangement = Arrangement.spacedBy(6.dp)
+                                            ) {
+                                                val repeatOptions = listOf(1 to "1x", 3 to "3x", 5 to "5x", 0 to "∞ Loop")
+                                                repeatOptions.forEach { (countVal, labelTxt) ->
+                                                    FilterChip(
+                                                        selected = audioState.repeatCountPerAyah == countVal,
+                                                        onClick = {
+                                                            viewModel.setQuranAudioRepeatAndRange(
+                                                                repeatCountPerAyah = countVal
+                                                            )
+                                                        },
+                                                        label = { Text("Ayah $labelTxt", maxLines = 1) },
+                                                        modifier = Modifier.testTag("repeat_chip_$countVal")
+                                                    )
+                                                }
+                                                FilterChip(
+                                                    selected = audioState.isRangeLoopEnabled,
+                                                    onClick = {
+                                                        viewModel.setQuranAudioRepeatAndRange(
+                                                            rangeStartAyah = 1,
+                                                            rangeEndAyah = state.surahMeta.ayahCount,
+                                                            isRangeLoopEnabled = !audioState.isRangeLoopEnabled
+                                                        )
+                                                    },
+                                                    label = {
+                                                        Text(
+                                                            text = if (audioState.isRangeLoopEnabled)
+                                                                strings.tr("Range ${audioState.rangeStartAyah}–${audioState.rangeEndAyah}", "পরিসর ${audioState.rangeStartAyah}–${audioState.rangeEndAyah}")
+                                                            else
+                                                                strings.tr("Range Loop Off", "আয়াত লুপ বন্ধ"),
+                                                            maxLines = 1
+                                                        )
+                                                    },
+                                                    modifier = Modifier.testTag("toggle_range_loop_chip")
+                                                )
+                                            }
+
                                         if (showReaderSettings) {
                                             HorizontalDivider()
+                                            if (audioState.isRangeLoopEnabled) {
+                                                Text(
+                                                    text = strings.tr(
+                                                        "Loop Ayah Range: ${audioState.rangeStartAyah} to ${audioState.rangeEndAyah} (of ${state.surahMeta.ayahCount})",
+                                                        "লুপ আয়াত পরিসর: ${audioState.rangeStartAyah} থেকে ${audioState.rangeEndAyah}"
+                                                    ),
+                                                    style = MaterialTheme.typography.labelLarge,
+                                                    color = MaterialTheme.colorScheme.primary
+                                                )
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                                ) {
+                                                    OutlinedButton(
+                                                        onClick = {
+                                                            val nextStart = (audioState.rangeStartAyah + 1).coerceAtMost(audioState.rangeEndAyah)
+                                                            viewModel.setQuranAudioRepeatAndRange(rangeStartAyah = nextStart)
+                                                        },
+                                                        modifier = Modifier.weight(1f)
+                                                    ) { Text("Start +1 (${audioState.rangeStartAyah})", maxLines = 1) }
+                                                    OutlinedButton(
+                                                        onClick = {
+                                                            val nextEnd = if (audioState.rangeEndAyah > audioState.rangeStartAyah) audioState.rangeEndAyah - 1 else state.surahMeta.ayahCount
+                                                            viewModel.setQuranAudioRepeatAndRange(rangeEndAyah = nextEnd)
+                                                        },
+                                                        modifier = Modifier.weight(1f)
+                                                    ) { Text("End (${audioState.rangeEndAyah})", maxLines = 1) }
+                                                }
+                                                HorizontalDivider()
+                                            }
                                             Text(
                                                 text = "Arabic Font Size: ${prefs.quranArabicFontSizeSp.toInt()} sp",
                                                 style = MaterialTheme.typography.labelLarge
@@ -942,11 +1019,13 @@ fun HifzTrackerScreen(
 ) {
     BackHandler { viewModel.navigateBack() }
     val hifzList by viewModel.hifzProgressList.collectAsStateWithLifecycle()
+    val prefs by viewModel.preferencesState.collectAsStateWithLifecycle()
 
     var selectedSurahNum by remember { mutableIntStateOf(114) }
     val selectedMeta = SurahCatalog.getSurahMeta(selectedSurahNum)
     var memorizedCount by remember(selectedSurahNum) { mutableIntStateOf(selectedMeta.ayahCount) }
     var selectedStatus by remember { mutableStateOf("MEMORIZED") }
+    var selectedIntervalDays by remember(prefs.hifzReviewIntervalDays) { mutableIntStateOf(prefs.hifzReviewIntervalDays) }
     var personalNotes by remember { mutableStateOf("") }
 
     val totalMemorizedAyahs = hifzList.sumOf { it.memorizedAyahs }
@@ -1039,12 +1118,38 @@ fun HifzTrackerScreen(
                         valueRange = 0f..selectedMeta.ayahCount.toFloat()
                     )
 
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         listOf("LEARNING", "NEEDS_REVISION", "MEMORIZED").forEach { st ->
                             FilterChip(
                                 selected = selectedStatus == st,
                                 onClick = { selectedStatus = st },
                                 label = { Text(st.replace("_", " ")) }
+                            )
+                        }
+                    }
+
+                    Text(
+                        text = strings.tr("Spaced-Revision Interval (Next Review Cadence):", "পরবর্তী রিভিশনের ব্যবধান (দিন):"),
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        modifier = Modifier.testTag("hifz_interval_chips")
+                    ) {
+                        listOf(1, 3, 7, 14, 30).forEach { days ->
+                            FilterChip(
+                                selected = selectedIntervalDays == days,
+                                onClick = {
+                                    selectedIntervalDays = days
+                                    viewModel.updateDailyGoalsAndHifzInterval(
+                                        dailyQuranAyahs = prefs.dailyQuranGoalAyahs,
+                                        dailyHifzAyahs = prefs.dailyHifzRevisionGoalAyahs,
+                                        hifzIntervalDays = days
+                                    )
+                                },
+                                label = { Text(strings.tr("Every ${days}d", "${days} দিন পর"), maxLines = 1) },
+                                modifier = Modifier.testTag("hifz_interval_${days}d")
                             )
                         }
                     }
@@ -1063,7 +1168,8 @@ fun HifzTrackerScreen(
                                 surahNumber = selectedSurahNum,
                                 memorizedAyahs = memorizedCount,
                                 status = selectedStatus,
-                                notes = personalNotes
+                                notes = personalNotes,
+                                customIntervalDays = selectedIntervalDays
                             )
                             personalNotes = ""
                         },

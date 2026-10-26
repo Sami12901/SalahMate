@@ -56,6 +56,16 @@ data class LearningGuideStep(
     val referenceNote: String
 )
 
+data class QuranicVocabFlashcard(
+    val id: Int,
+    val arabicWord: String,
+    val transliteration: String,
+    val meaningBn: String,
+    val meaningEn: String,
+    val quranReference: String,
+    val categoryTag: String
+)
+
 object VerifiedIslamicContent {
 
     val HADITH_COLLECTIONS = listOf(
@@ -383,5 +393,24 @@ object VerifiedIslamicContent {
         LearningGuideStep(6, "Wiping the Head (Masah - 1x)", "মাথা মাসেহ করা (১ বার)", "Wipe wet hands over the head from front to back and back to front once, including the ears (Fard).", "ভেজা হাতে মাথার সামনের অংশ থেকে পেছনে নিয়ে পুনরায় সামনে এনে একবার মাসেহ করুন এবং কান মাসেহ করুন (ফরজ)।", "Surah Al-Ma'idah 5:6; Sahih Muslim 235"),
         LearningGuideStep(7, "Washing Both Feet Including Ankles (3x)", "টাখনুসহ উভয় পা ধোয়া (৩ বার)", "Wash the right foot then the left foot up to and including the ankles three times, cleaning between the toes (Fard).", "প্রথমে ডান পা এবং পরে বাম পা টাখনুসহ তিনবার ভালোভাবে ধৌত করুন এবং আঙুলের ফাঁক খিলাল করুন (ফরজ)।", "Surah Al-Ma'idah 5:6; Sahih al-Bukhari 159"),
         LearningGuideStep(8, "Supplication After Wudu", "ওযু শেষের দোয়া", "Recite the Shahadah and: 'Allahummaj-'alni minat-tawwabina waj-'alni minal-mutatahhirin.'", "শাহাদাত পাঠ করুন এবং বলুন: 'আল্লাহুম্মাজ-আলনী মিনাত-তাওয়্যাবীন ওয়াজ-আলনী মিনাল-মুতাতাহহিরীন।'", "Sahih Muslim 234, Jami' at-Tirmidhi 55")
+    )
+
+    // --- Offline Arabic-Bengali-English Quranic Vocabulary Flashcards & Quiz Bank ---
+    val QURANIC_VOCAB_FLASHCARDS = listOf(
+        QuranicVocabFlashcard(1, "رَبّ", "Rabb", "পালনকর্তা / রব", "Lord and Sustainer", "Surah Al-Fatihah 1:2", "Core Attributes"),
+        QuranicVocabFlashcard(2, "رَحْمَة", "Rahmah", "দয়া / অনুগ্রহ", "Mercy and Compassion", "Surah Al-A'raf 7:156", "Core Attributes"),
+        QuranicVocabFlashcard(3, "هُدًى", "Hudan", "হিদায়াত / পথনির্দেশ", "Divine Guidance", "Surah Al-Baqarah 2:2", "Guidance"),
+        QuranicVocabFlashcard(4, "تَقْوَىٰ", "Taqwa", "তাকওয়া / আল্লাহভীতি", "God-consciousness & Piety", "Surah Al-Baqarah 2:197", "Guidance"),
+        QuranicVocabFlashcard(5, "صَبْر", "Sabr", "ধৈর্য / অবিচলতা", "Patience and Perseverance", "Surah Al-Baqarah 2:153", "Character"),
+        QuranicVocabFlashcard(6, "شُكْر", "Shukr", "কৃতজ্ঞতা / শুকরিয়া", "Gratitude and Thankfulness", "Surah Ibrahim 14:7", "Character"),
+        QuranicVocabFlashcard(7, "صَلَاة", "Salah", "নামাজ / সালাত", "Ritual Prayer", "Surah Al-Baqarah 2:43", "Worship"),
+        QuranicVocabFlashcard(8, "زَكَاة", "Zakah", "যাকাত / পবিত্রকারী দান", "Obligatory Almsgiving", "Surah Al-Baqarah 2:43", "Worship"),
+        QuranicVocabFlashcard(9, "حَقّ", "Haqq", "সত্য / ন্যায়", "The Truth and Justice", "Surah Al-Isra 17:81", "Guidance"),
+        QuranicVocabFlashcard(10, "نُور", "Nur", "আলো / নূর", "Sacred Light", "Surah An-Nur 24:35", "Creation"),
+        QuranicVocabFlashcard(11, "سَلَام", "Salam", "শান্তি / নিরাপত্তা", "Peace and Security", "SurahAl-Qadr 97:5", "Core Attributes"),
+        QuranicVocabFlashcard(12, "عِلْم", "'Ilm", "জ্ঞান / প্রজ্ঞা", "Knowledge", "Surah Ta-Ha 20:114", "Guidance"),
+        QuranicVocabFlashcard(13, "قَلْب", "Qalb", "অন্তর / হৃদয়", "The Heart", "Surah Ash-Shu'ara 26:89", "Character"),
+        QuranicVocabFlashcard(14, "تَوْبَة", "Tawbah", "তওবা / অনুশোচনা", "Sincere Repentance", "Surah At-Tahrim 66:8", "Worship"),
+        QuranicVocabFlashcard(15, "آخِرَة", "Akhirah", "আখিরাত / পরকাল", "The Hereafter", "Surah Ad-Duha 93:4", "Faith")
     )
 }

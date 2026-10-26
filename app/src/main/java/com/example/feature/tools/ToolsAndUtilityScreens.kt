@@ -38,6 +38,7 @@ import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.WbTwilight
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -46,6 +47,7 @@ import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedCard
@@ -53,6 +55,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -1032,12 +1035,21 @@ fun PrayerTrackerScreen(
     BackHandler { viewModel.navigateBack() }
     val schedule by viewModel.todaySchedule.collectAsStateWithLifecycle()
     val logs by viewModel.prayerLogsList.collectAsStateWithLifecycle()
+    val readingHistory by viewModel.readingHistory.collectAsStateWithLifecycle()
+    val hifzList by viewModel.hifzProgressList.collectAsStateWithLifecycle()
 
     val todayLog = logs.firstOrNull { it.dateIso == schedule.dateIso }
     var reflectionText by remember(todayLog?.personalReflection) { mutableStateOf(todayLog?.personalReflection ?: "") }
 
     val totalLoggedDays = logs.size
     val totalPrayersCompleted = logs.sumOf { it.completedCount }
+    val last7Logs = logs.take(7)
+    val last30Logs = logs.take(30)
+    val last7Completed = last7Logs.sumOf { it.completedCount }
+    val last7Target = (last7Logs.size.coerceAtLeast(1)) * 5
+    val last30Completed = last30Logs.sumOf { it.completedCount }
+    val last30Target = (last30Logs.size.coerceAtLeast(1)) * 5
+    val memorizedSurahsCount = hifzList.count { it.status == "MEMORIZED" }
 
     LazyColumn(
         modifier = Modifier
@@ -1062,8 +1074,8 @@ fun PrayerTrackerScreen(
                     )
                     Text(
                         text = strings.tr(
-                            "100% Private & Local: Your prayer checklist never leaves your device.",
-                            "১০০% ব্যক্তিগত ও অফলাইন: আপনার নামাজের হিসাব শুধুমাত্র আপনার ফোনেই সংরক্ষিত থাকে।"
+                            "100% Private & Local: Your prayer checklist and worship analytics never leave your device.",
+                            "১০০% ব্যক্তিগত ও অফলাইন: আপনার নামাজের হিসাব ও ইবাদত বিশ্লেষণ শুধুমাত্র আপনার ফোনেই সংরক্ষিত থাকে।"
                         ),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -1077,6 +1089,92 @@ fun PrayerTrackerScreen(
                         color = VerifiedEmerald,
                         fontWeight = FontWeight.Bold
                     )
+                }
+            }
+        }
+
+        // Personal Worship Analytics (7-Day & 30-Day Summary)
+        item {
+            OutlinedCard(
+                shape = RoundedCornerShape(18.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("worship_analytics_card")
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text(
+                        text = strings.tr("Personal Worship Analytics (7-Day & 30-Day)", "ব্যক্তিগত ইবাদত বিশ্লেষণ (৭ দিন ও ৩০ দিন)"),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = strings.tr("Last 7 Recorded Days", "সর্বশেষ ৭ দিনের নামাজ"),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Text(
+                            text = "$last7Completed / $last7Target (${((last7Completed.toFloat() / last7Target) * 100).toInt()}%)",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = VerifiedEmerald
+                        )
+                    }
+                    LinearProgressIndicator(
+                        progress = { (last7Completed.toFloat() / last7Target.toFloat()).coerceIn(0f, 1f) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(8.dp)
+                            .clip(RoundedCornerShape(4.dp)),
+                        color = VerifiedEmerald
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = strings.tr("Last 30 Recorded Days", "সর্বশেষ ৩০ দিনের নামাজ"),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Text(
+                            text = "$last30Completed / $last30Target (${((last30Completed.toFloat() / last30Target) * 100).toInt()}%)",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    LinearProgressIndicator(
+                        progress = { (last30Completed.toFloat() / last30Target.toFloat()).coerceIn(0f, 1f) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(8.dp)
+                            .clip(RoundedCornerShape(4.dp))
+                    )
+
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = strings.tr("Quran Sessions: ${readingHistory.size}", "কুরআন তিলাওয়াত সেশন: ${readingHistory.size}"),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = strings.tr("Memorized Surahs: $memorizedSurahsCount", "মুখস্থকৃত সূরা: $memorizedSurahsCount"),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = VerifiedEmerald,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
             }
         }
@@ -1249,17 +1347,29 @@ fun SettingsAndBackupScreen(
     val scope = rememberCoroutineScope()
     val prefs by viewModel.preferencesState.collectAsStateWithLifecycle()
     val cachedAyahsCount by viewModel.totalCachedAyahsCount.collectAsStateWithLifecycle()
+    val backupPreview by viewModel.backupPreviewState.collectAsStateWithLifecycle()
+
+    var usePasswordEncryption by remember { mutableStateOf(false) }
+    var backupPassword by remember { mutableStateOf("") }
+    var pendingImportPayload by remember { mutableStateOf<String?>(null) }
 
     val exportLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/json")
     ) { uri ->
         if (uri != null) {
             scope.launch {
-                val json = viewModel.exportUserDataJson()
+                val pwd = if (usePasswordEncryption) backupPassword.takeIf { it.isNotBlank() } else null
+                val json = viewModel.exportUserDataJson(pwd)
                 context.contentResolver.openOutputStream(uri)?.use { out ->
                     out.write(json.toByteArray(Charsets.UTF_8))
                 }
-                viewModel.showStatusMessage("Backup exported successfully.")
+                viewModel.showStatusMessage(
+                    if (usePasswordEncryption && backupPassword.isNotBlank()) {
+                        strings.tr("AES-256-GCM Encrypted backup exported.", "এনক্রিপ্টেড ব্যাকআপ এক্সপোর্ট সম্পন্ন হয়েছে।")
+                    } else {
+                        strings.tr("Plaintext JSON backup exported.", "JSON ব্যাকআপ এক্সপোর্ট সম্পন্ন হয়েছে।")
+                    }
+                )
             }
         }
     }
@@ -1271,10 +1381,78 @@ fun SettingsAndBackupScreen(
             scope.launch {
                 val content = context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
                 if (!content.isNullOrBlank()) {
-                    viewModel.importUserDataJson(content)
+                    pendingImportPayload = content
+                    val pwd = backupPassword.takeIf { it.isNotBlank() }
+                    viewModel.inspectBackupBeforeImport(content, pwd)
                 }
             }
         }
+    }
+
+    // Restore Preview Modal before executing atomic import
+    val currentPreview = backupPreview
+    val currentPayload = pendingImportPayload
+    if (currentPreview != null && currentPayload != null) {
+        AlertDialog(
+            onDismissRequest = {
+                viewModel.clearBackupPreview()
+                pendingImportPayload = null
+            },
+            title = {
+                Text(
+                    text = strings.tr("Restore Backup Preview", "ব্যাকআপ রিস্টোর প্রিভিউ"),
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = strings.tr(
+                            "Schema v${currentPreview.schemaVersion} • ${if (currentPreview.isEncrypted) "AES-256-GCM Encrypted" else "Plaintext JSON"}",
+                            "স্কিমা v${currentPreview.schemaVersion} • ${if (currentPreview.isEncrypted) "AES-256-GCM এনক্রিপ্টেড" else "সাধারণ JSON"}"
+                        ),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Text("• Quran Bookmarks: ${currentPreview.bookmarksCount} (${currentPreview.duplicateBookmarksSkipped} duplicates skipped)")
+                    Text("• Hifz Progress Records: ${currentPreview.hifzCount}")
+                    Text("• Prayer Tracker Logs: ${currentPreview.prayerLogsCount}")
+                    Text("• Tasbih Sessions: ${currentPreview.tasbihCount}")
+                    Text("• Reading History Entries: ${currentPreview.readingHistoryCount}")
+                    Text("• Settings Included: ${if (currentPreview.hasUserPreferences) "Yes" else "No"}")
+                    Text(
+                        text = strings.tr(
+                            "Import runs inside an atomic database transaction. If any record fails validation, no existing data will be altered.",
+                            "এই রিস্টোরটি একটি নিরাপদ ট্রানজেকশনে সম্পন্ন হবে। কোনো ত্রুটি হলে বর্তমান ডেটা অপরিবর্তিত থাকবে।"
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val pwd = backupPassword.takeIf { it.isNotBlank() }
+                        viewModel.importUserDataJson(currentPayload, pwd)
+                        pendingImportPayload = null
+                    },
+                    modifier = Modifier.testTag("confirm_restore_backup_button")
+                ) {
+                    Text(strings.tr("Confirm & Restore Now", "নিশ্চিত করুন ও রিস্টোর করুন"))
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.clearBackupPreview()
+                        pendingImportPayload = null
+                    }
+                ) {
+                    Text(strings.tr("Cancel", "বাতিল"))
+                }
+            }
+        )
     }
 
     LazyColumn(
@@ -1373,33 +1551,86 @@ fun SettingsAndBackupScreen(
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     Text(
-                        text = strings.tr("Local Data Backup & Restore (JSON)", "ব্যক্তিগত ডেটা ব্যাকআপ ও রিস্টোর (JSON)"),
+                        text = strings.tr("Local Data Backup & Restore (AES-256-GCM / JSON)", "ব্যক্তিগত ডেটা ব্যাকআপ ও রিস্টোর (AES-256-GCM / JSON)"),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
                         text = strings.tr(
-                            "Export or restore your Quran bookmarks, Hifz memorization logs, prayer tracker history, and Tasbih sessions using Android's system file picker. Cached Quran Ayahs currently stored: $cachedAyahsCount.",
-                            "আপনার কুরআন বুকমার্ক, হিফয অগ্রগতি, নামাজ ট্র্যাকার ও তাসবীহ সেশন ফাইল পিকারের মাধ্যমে ব্যাকআপ ও রিস্টোর করুন।"
+                            "Export or restore your Quran bookmarks, Hifz memorization logs, prayer tracker history, Tasbih sessions, and user settings. Cached Quran Ayahs currently stored: $cachedAyahsCount.",
+                            "আপনার কুরআন বুকমার্ক, হিফয অগ্রগতি, নামাজ ট্র্যাকার, তাসবীহ সেশন ও সেটিংস ফাইল পিকারের মাধ্যমে ব্যাকআপ ও রিস্টোর করুন।"
                         ),
                         style = MaterialTheme.typography.bodyMedium
                     )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = strings.tr("Password-Protected Encrypted Backup (PBKDF2 + AES-256-GCM)", "পাসওয়ার্ড সুরক্ষিত এনক্রিপ্টেড ব্যাকআপ (AES-256-GCM)"),
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = if (usePasswordEncryption) {
+                                    strings.tr("Authenticated encryption enabled. Keep your password safe.", "অথেনটিকেটেড এনক্রিপশন সক্রিয়। পাসওয়ার্ডটি মনে রাখুন।")
+                                } else {
+                                    strings.tr("Privacy Warning: Plaintext JSON can be read by anyone with access to the exported file.", "সতর্কতা: পাসওয়ার্ড ছাড়া সাধারণ JSON ফাইল যে কেউ পড়তে পারবে।")
+                                },
+                                style = MaterialTheme.typography.bodySmall,
+                                color = if (usePasswordEncryption) VerifiedEmerald else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = usePasswordEncryption,
+                            onCheckedChange = { usePasswordEncryption = it },
+                            modifier = Modifier.testTag("toggle_encrypted_backup_switch")
+                        )
+                    }
+
+                    OutlinedTextField(
+                        value = backupPassword,
+                        onValueChange = { backupPassword = it },
+                        label = {
+                            Text(
+                                strings.tr(
+                                    "Backup / Restore Password (required for encrypted files)",
+                                    "ব্যাকআপ / রিস্টোর পাসওয়ার্ড (এনক্রিপ্টেড ফাইলের জন্য)"
+                                )
+                            )
+                        },
+                        singleLine = true,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("backup_password_input")
+                    )
+
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         Button(
-                            onClick = { exportLauncher.launch("salahmate_backup.json") },
+                            onClick = {
+                                val fileName = if (usePasswordEncryption && backupPassword.isNotBlank()) {
+                                    "salahmate_encrypted_backup.json"
+                                } else {
+                                    "salahmate_backup.json"
+                                }
+                                exportLauncher.launch(fileName)
+                            },
                             modifier = Modifier.weight(1f)
                         ) {
                             Icon(Icons.Default.FileDownload, contentDescription = null)
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text(strings.tr("Export Backup", "ব্যাকআপ এক্সপোর্ট"))
+                            Text(strings.tr("Export Backup", "ব্যাকআপ এক্সপোর্ট"), maxLines = 1, softWrap = false)
                         }
                         OutlinedButton(
-                            onClick = { importLauncher.launch(arrayOf("application/json", "text/*")) },
+                            onClick = { importLauncher.launch(arrayOf("application/json", "text/*", "*/*")) },
                             modifier = Modifier.weight(1f)
                         ) {
                             Icon(Icons.Default.FileUpload, contentDescription = null)
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text(strings.tr("Import Backup", "ব্যাকআপ ইমপোর্ট"))
+                            Text(strings.tr("Preview & Restore", "প্রিভিউ ও রিস্টোর"), maxLines = 1, softWrap = false)
                         }
                     }
                 }

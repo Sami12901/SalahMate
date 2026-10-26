@@ -701,16 +701,34 @@ fun HomeDashboardScreen(
                                             color = MaterialTheme.colorScheme.primary
                                         )
                                     }
+                                    if (entry.jamaahFormatted12h.isNotBlank()) {
+                                        Text(
+                                            text = strings.tr(
+                                                "Jama'ah: ${entry.jamaahFormatted12h} (+${entry.jamaahOffsetMinutes}m)",
+                                                "জামাত: ${entry.jamaahFormatted12h} (+${entry.jamaahOffsetMinutes}মি.)"
+                                            ),
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = VerifiedEmerald,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                    }
                                 }
                             }
 
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    text = entry.formatted12h,
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (isNext) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
-                                )
+                                Column(horizontalAlignment = Alignment.End) {
+                                    Text(
+                                        text = entry.formatted12h,
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (isNext) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        text = strings.tr("Solar Waqt", "ওয়াক্ত শুরু"),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
                                 Spacer(modifier = Modifier.width(8.dp))
                                 val isNotifOn = when (entry.type) {
                                     DailyPrayerType.FAJR -> prefs.notifyFajr
@@ -1177,6 +1195,13 @@ fun PrayerEngineAndNotificationsScreen(
     var ishaOffset by remember(prefs.ishaOffsetMin) { mutableIntStateOf(prefs.ishaOffsetMin) }
     var imsakOffset by remember(prefs.imsakOffsetMin) { mutableIntStateOf(prefs.imsakOffsetMin) }
 
+    var showJamaah by remember(prefs.showMosqueJamaah) { mutableStateOf(prefs.showMosqueJamaah) }
+    var fajrJamaah by remember(prefs.fajrJamaahOffsetMin) { mutableIntStateOf(prefs.fajrJamaahOffsetMin) }
+    var dhuhrJamaah by remember(prefs.dhuhrJamaahOffsetMin) { mutableIntStateOf(prefs.dhuhrJamaahOffsetMin) }
+    var asrJamaah by remember(prefs.asrJamaahOffsetMin) { mutableIntStateOf(prefs.asrJamaahOffsetMin) }
+    var maghribJamaah by remember(prefs.maghribJamaahOffsetMin) { mutableIntStateOf(prefs.maghribJamaahOffsetMin) }
+    var ishaJamaah by remember(prefs.ishaJamaahOffsetMin) { mutableIntStateOf(prefs.ishaJamaahOffsetMin) }
+
     val notifPermLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { _ ->
@@ -1351,6 +1376,66 @@ fun PrayerEngineAndNotificationsScreen(
             }
         }
 
+        // 2B. Mosque Jama'ah (Congregation) Timetable Profile Card (Separate from Calculated Solar Waqt)
+        item {
+            OutlinedCard(
+                shape = RoundedCornerShape(20.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("mosque_jamaah_profile_card")
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text(
+                        text = strings.tr("Local Mosque Jama'ah Timetable", "স্থানীয় মসজিদের জামাতের সময়সূচী"),
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = strings.tr(
+                            "Kept strictly separate from calculated solar Waqt and Imsak. Set how many minutes after Waqt your local Masjid holds congregation (Jama'ah).",
+                            "সূর্য-গণনাকৃত ওয়াক্ত ও সাহরি/ইমসাক থেকে সম্পূর্ণ পৃথক। ওয়াক্ত শুরুর কত মিনিট পর আপনার স্থানীয় মসজিদে জামাত অনুষ্ঠিত হয় তা নির্ধারণ করুন।"
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    PrayerToggleRow(
+                        label = strings.tr("Show Mosque Jama'ah Times on Home", "হোম স্ক্রিনে মসজিদের জামাতের সময় দেখান"),
+                        checked = showJamaah
+                    ) { showJamaah = it }
+
+                    if (showJamaah) {
+                        MinuteOffsetRow("Fajr Jama'ah (+min)", fajrJamaah) { fajrJamaah = it.coerceIn(0, 90) }
+                        MinuteOffsetRow("Dhuhr Jama'ah (+min)", dhuhrJamaah) { dhuhrJamaah = it.coerceIn(0, 90) }
+                        MinuteOffsetRow("Asr Jama'ah (+min)", asrJamaah) { asrJamaah = it.coerceIn(0, 90) }
+                        MinuteOffsetRow("Maghrib Jama'ah (+min)", maghribJamaah) { maghribJamaah = it.coerceIn(0, 60) }
+                        MinuteOffsetRow("Isha Jama'ah (+min)", ishaJamaah) { ishaJamaah = it.coerceIn(0, 90) }
+                    }
+
+                    Button(
+                        onClick = {
+                            viewModel.updateMosqueJamaahSettings(
+                                showJamaah = showJamaah,
+                                fajrJamaahMin = fajrJamaah,
+                                dhuhrJamaahMin = dhuhrJamaah,
+                                asrJamaahMin = asrJamaah,
+                                maghribJamaahMin = maghribJamaah,
+                                ishaJamaahMin = ishaJamaah
+                            )
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("save_jamaah_profile_button")
+                    ) {
+                        Text(strings.tr("Save Mosque Jama'ah Timetable", "জামাতের সময়সূচী সংরক্ষণ করুন"))
+                    }
+                }
+            }
+        }
+
         // 3. Opt-In Prayer Notifications & Adhan Card (AlarmManager + WorkManager)
         item {
             OutlinedCard(
@@ -1514,6 +1599,31 @@ fun PrayerEngineAndNotificationsScreen(
                                 label = { Text(if (mins == 0) "On Time" else "$mins min before") }
                             )
                         }
+                    }
+
+                    HorizontalDivider()
+                    Text(
+                        text = strings.tr("Independent Worship & Sunnah Reminders", "দৈনিক যিকির ও জুমার সূরা কাহফ রিমাইন্ডার"),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    PrayerToggleRow(
+                        label = strings.tr("Morning Adhkar (+25m after Fajr)", "সকালের যিকির (ফজরের ২৫ মিনিট পর)"),
+                        checked = prefs.morningAdhkarReminderEnabled
+                    ) {
+                        viewModel.updateWorshipReminders(it, prefs.eveningAdhkarReminderEnabled, prefs.jumuahKahfReminderEnabled)
+                    }
+                    PrayerToggleRow(
+                        label = strings.tr("Evening Adhkar (+20m after Asr)", "সন্ধ্যার যিকির (আসরের ২০ মিনিট পর)"),
+                        checked = prefs.eveningAdhkarReminderEnabled
+                    ) {
+                        viewModel.updateWorshipReminders(prefs.morningAdhkarReminderEnabled, it, prefs.jumuahKahfReminderEnabled)
+                    }
+                    PrayerToggleRow(
+                        label = strings.tr("Friday Surah Al-Kahf Reminder", "জুমার দিন সূরা কাহফ ও দরূদ রিমাইন্ডার"),
+                        checked = prefs.jumuahKahfReminderEnabled
+                    ) {
+                        viewModel.updateWorshipReminders(prefs.morningAdhkarReminderEnabled, prefs.eveningAdhkarReminderEnabled, it)
                     }
 
                     HorizontalDivider()

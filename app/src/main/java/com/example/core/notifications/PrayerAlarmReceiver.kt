@@ -23,6 +23,18 @@ import java.util.TimeZone
 class PrayerAlarmReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent?) {
         val action = intent?.action ?: return
+
+        // Verify internal token for custom application actions so exported receiver cannot be spoofed by third-party apps
+        val isCustomAppAction = action == PrayerNotificationScheduler.ACTION_PRAYER_ALARM ||
+            action == PrayerNotificationScheduler.ACTION_PRAYER_MARK_COMPLETED ||
+            action == PrayerNotificationScheduler.ACTION_PRAYER_SNOOZE ||
+            action == PrayerNotificationScheduler.ACTION_PRAYER_DISMISS ||
+            action == PrayerNotificationScheduler.ACTION_WORSHIP_REMINDER
+
+        if (isCustomAppAction && !PrayerNotificationScheduler.verifyInternalAlarmToken(context, intent)) {
+            return
+        }
+
         val pendingResult = goAsync()
 
         CoroutineScope(Dispatchers.IO).launch {
@@ -54,6 +66,21 @@ class PrayerAlarmReceiver : BroadcastReceiver() {
                         // Schedule next prayer / next day's alarms + WorkManager fallback and refresh home-screen widget
                         PrayerNotificationScheduler.scheduleDailyPrayerAlarms(context, prefs)
                         SalahMateWidgetProvider.updateAllWidgets(context)
+                    }
+
+                    PrayerNotificationScheduler.ACTION_WORSHIP_REMINDER -> {
+                        val notifId = intent.getIntExtra(PrayerNotificationScheduler.EXTRA_WORSHIP_REMINDER_ID, 2401)
+                        val title = intent.getStringExtra(PrayerNotificationScheduler.EXTRA_WORSHIP_REMINDER_TITLE)
+                            ?: "SalahMate Worship Reminder"
+                        val body = intent.getStringExtra(PrayerNotificationScheduler.EXTRA_WORSHIP_REMINDER_BODY)
+                            ?: "Remember Allah with authentic Masnun Adhkar."
+                        PrayerNotificationScheduler.showWorshipReminderNotification(
+                            context = context,
+                            notificationId = notifId,
+                            title = title,
+                            body = body
+                        )
+                        PrayerNotificationScheduler.scheduleDailyPrayerAlarms(context, prefs)
                     }
 
                     PrayerNotificationScheduler.ACTION_PRAYER_MARK_COMPLETED -> {

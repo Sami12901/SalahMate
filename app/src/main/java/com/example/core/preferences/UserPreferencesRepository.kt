@@ -11,7 +11,9 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import org.json.JSONObject
 
 val Context.salahMateDataStore: DataStore<Preferences> by preferencesDataStore(name = "salahmate_preferences")
 
@@ -125,6 +127,13 @@ data class UserPreferencesState(
     val maghribOffsetMin: Int = 0,
     val ishaOffsetMin: Int = 0,
     val imsakOffsetMin: Int = -10, // Default Imsak precautionary margin before Fajr
+    // Mosque Jama'ah (Congregation) timetable offsets kept separate from calculated solar Waqt
+    val showMosqueJamaah: Boolean = true,
+    val fajrJamaahOffsetMin: Int = 20,
+    val dhuhrJamaahOffsetMin: Int = 15,
+    val asrJamaahOffsetMin: Int = 15,
+    val maghribJamaahOffsetMin: Int = 5,
+    val ishaJamaahOffsetMin: Int = 15,
     val notifyFajr: Boolean = true,
     val notifyDhuhr: Boolean = true,
     val notifyAsr: Boolean = true,
@@ -132,6 +141,10 @@ data class UserPreferencesState(
     val notifyIsha: Boolean = true,
     val advanceReminderMinutes: Int = 0,
     val notificationSoundMode: NotificationSoundMode = NotificationSoundMode.ADHAN_CHIME,
+    // Independent optional worship reminders
+    val morningAdhkarReminderEnabled: Boolean = false,
+    val eveningAdhkarReminderEnabled: Boolean = false,
+    val jumuahKahfReminderEnabled: Boolean = true,
     val hijriAdjustmentDays: Int = 0,
     val quranArabicFontSizeSp: Float = 28f,
     val quranTranslationFontSizeSp: Float = 16f,
@@ -142,6 +155,7 @@ data class UserPreferencesState(
     val lastReadAyahNumber: Int = 1,
     val dailyQuranGoalAyahs: Int = 20,
     val dailyHifzRevisionGoalAyahs: Int = 10,
+    val hifzReviewIntervalDays: Int = 7, // Spaced-revision interval: 1, 3, 7, 14, or 30 days
     val goldPricePerGram: Double = 11500.0, // Editable BDT/USD market value per gram
     val silverPricePerGram: Double = 145.0,
     val zakatCurrencySymbol: String = "৳"
@@ -170,6 +184,12 @@ class UserPreferencesRepository(private val dataStore: DataStore<Preferences>) {
         val MAGHRIB_OFFSET = intPreferencesKey("maghrib_offset")
         val ISHA_OFFSET = intPreferencesKey("isha_offset")
         val IMSAK_OFFSET = intPreferencesKey("imsak_offset")
+        val SHOW_MOSQUE_JAMAAH = booleanPreferencesKey("show_mosque_jamaah")
+        val FAJR_JAMAAH_OFFSET = intPreferencesKey("fajr_jamaah_offset")
+        val DHUHR_JAMAAH_OFFSET = intPreferencesKey("dhuhr_jamaah_offset")
+        val ASR_JAMAAH_OFFSET = intPreferencesKey("asr_jamaah_offset")
+        val MAGHRIB_JAMAAH_OFFSET = intPreferencesKey("maghrib_jamaah_offset")
+        val ISHA_JAMAAH_OFFSET = intPreferencesKey("isha_jamaah_offset")
         val NOTIFY_FAJR = booleanPreferencesKey("notify_fajr")
         val NOTIFY_DHUHR = booleanPreferencesKey("notify_dhuhr")
         val NOTIFY_ASR = booleanPreferencesKey("notify_asr")
@@ -177,6 +197,9 @@ class UserPreferencesRepository(private val dataStore: DataStore<Preferences>) {
         val NOTIFY_ISHA = booleanPreferencesKey("notify_isha")
         val ADVANCE_REMINDER_MIN = intPreferencesKey("advance_reminder_min")
         val SOUND_MODE = stringPreferencesKey("sound_mode")
+        val MORNING_ADHKAR_REMINDER = booleanPreferencesKey("morning_adhkar_reminder")
+        val EVENING_ADHKAR_REMINDER = booleanPreferencesKey("evening_adhkar_reminder")
+        val JUMUAH_KAHF_REMINDER = booleanPreferencesKey("jumuah_kahf_reminder")
         val HIJRI_ADJUST = intPreferencesKey("hijri_adjust")
         val QURAN_ARABIC_SIZE = floatPreferencesKey("quran_arabic_size")
         val QURAN_TRANS_SIZE = floatPreferencesKey("quran_trans_size")
@@ -187,6 +210,7 @@ class UserPreferencesRepository(private val dataStore: DataStore<Preferences>) {
         val LAST_AYAH_NUM = intPreferencesKey("last_ayah_num")
         val DAILY_QURAN_GOAL = intPreferencesKey("daily_quran_goal")
         val DAILY_HIFZ_GOAL = intPreferencesKey("daily_hifz_goal")
+        val HIFZ_REVIEW_INTERVAL_DAYS = intPreferencesKey("hifz_review_interval_days")
         val GOLD_PRICE_GRAM = doublePreferencesKey("gold_price_gram")
         val SILVER_PRICE_GRAM = doublePreferencesKey("silver_price_gram")
         val ZAKAT_CURRENCY = stringPreferencesKey("zakat_currency")
@@ -214,6 +238,12 @@ class UserPreferencesRepository(private val dataStore: DataStore<Preferences>) {
             maghribOffsetMin = prefs[Keys.MAGHRIB_OFFSET] ?: 0,
             ishaOffsetMin = prefs[Keys.ISHA_OFFSET] ?: 0,
             imsakOffsetMin = prefs[Keys.IMSAK_OFFSET] ?: -10,
+            showMosqueJamaah = prefs[Keys.SHOW_MOSQUE_JAMAAH] ?: true,
+            fajrJamaahOffsetMin = prefs[Keys.FAJR_JAMAAH_OFFSET] ?: 20,
+            dhuhrJamaahOffsetMin = prefs[Keys.DHUHR_JAMAAH_OFFSET] ?: 15,
+            asrJamaahOffsetMin = prefs[Keys.ASR_JAMAAH_OFFSET] ?: 15,
+            maghribJamaahOffsetMin = prefs[Keys.MAGHRIB_JAMAAH_OFFSET] ?: 5,
+            ishaJamaahOffsetMin = prefs[Keys.ISHA_JAMAAH_OFFSET] ?: 15,
             notifyFajr = prefs[Keys.NOTIFY_FAJR] ?: true,
             notifyDhuhr = prefs[Keys.NOTIFY_DHUHR] ?: true,
             notifyAsr = prefs[Keys.NOTIFY_ASR] ?: true,
@@ -221,6 +251,9 @@ class UserPreferencesRepository(private val dataStore: DataStore<Preferences>) {
             notifyIsha = prefs[Keys.NOTIFY_ISHA] ?: true,
             advanceReminderMinutes = prefs[Keys.ADVANCE_REMINDER_MIN] ?: 0,
             notificationSoundMode = runCatching { NotificationSoundMode.valueOf(prefs[Keys.SOUND_MODE] ?: "ADHAN_CHIME") }.getOrDefault(NotificationSoundMode.ADHAN_CHIME),
+            morningAdhkarReminderEnabled = prefs[Keys.MORNING_ADHKAR_REMINDER] ?: false,
+            eveningAdhkarReminderEnabled = prefs[Keys.EVENING_ADHKAR_REMINDER] ?: false,
+            jumuahKahfReminderEnabled = prefs[Keys.JUMUAH_KAHF_REMINDER] ?: true,
             hijriAdjustmentDays = prefs[Keys.HIJRI_ADJUST] ?: 0,
             quranArabicFontSizeSp = prefs[Keys.QURAN_ARABIC_SIZE] ?: 28f,
             quranTranslationFontSizeSp = prefs[Keys.QURAN_TRANS_SIZE] ?: 16f,
@@ -231,6 +264,7 @@ class UserPreferencesRepository(private val dataStore: DataStore<Preferences>) {
             lastReadAyahNumber = prefs[Keys.LAST_AYAH_NUM] ?: 1,
             dailyQuranGoalAyahs = prefs[Keys.DAILY_QURAN_GOAL] ?: 20,
             dailyHifzRevisionGoalAyahs = prefs[Keys.DAILY_HIFZ_GOAL] ?: 10,
+            hifzReviewIntervalDays = prefs[Keys.HIFZ_REVIEW_INTERVAL_DAYS] ?: 7,
             goldPricePerGram = prefs[Keys.GOLD_PRICE_GRAM] ?: 11500.0,
             silverPricePerGram = prefs[Keys.SILVER_PRICE_GRAM] ?: 145.0,
             zakatCurrencySymbol = prefs[Keys.ZAKAT_CURRENCY] ?: "৳"
@@ -320,6 +354,24 @@ class UserPreferencesRepository(private val dataStore: DataStore<Preferences>) {
         }
     }
 
+    suspend fun updateMosqueJamaahSettings(
+        showJamaah: Boolean,
+        fajrJamaahMin: Int,
+        dhuhrJamaahMin: Int,
+        asrJamaahMin: Int,
+        maghribJamaahMin: Int,
+        ishaJamaahMin: Int
+    ) {
+        dataStore.edit { prefs ->
+            prefs[Keys.SHOW_MOSQUE_JAMAAH] = showJamaah
+            prefs[Keys.FAJR_JAMAAH_OFFSET] = fajrJamaahMin.coerceIn(0, 90)
+            prefs[Keys.DHUHR_JAMAAH_OFFSET] = dhuhrJamaahMin.coerceIn(0, 90)
+            prefs[Keys.ASR_JAMAAH_OFFSET] = asrJamaahMin.coerceIn(0, 90)
+            prefs[Keys.MAGHRIB_JAMAAH_OFFSET] = maghribJamaahMin.coerceIn(0, 60)
+            prefs[Keys.ISHA_JAMAAH_OFFSET] = ishaJamaahMin.coerceIn(0, 90)
+        }
+    }
+
     suspend fun updateNotificationSettings(
         fajr: Boolean,
         dhuhr: Boolean,
@@ -337,6 +389,18 @@ class UserPreferencesRepository(private val dataStore: DataStore<Preferences>) {
             prefs[Keys.NOTIFY_ISHA] = isha
             prefs[Keys.ADVANCE_REMINDER_MIN] = advanceMinutes.coerceIn(0, 60)
             prefs[Keys.SOUND_MODE] = soundMode.name
+        }
+    }
+
+    suspend fun updateWorshipReminders(
+        morningAdhkar: Boolean,
+        eveningAdhkar: Boolean,
+        jumuahKahf: Boolean
+    ) {
+        dataStore.edit { prefs ->
+            prefs[Keys.MORNING_ADHKAR_REMINDER] = morningAdhkar
+            prefs[Keys.EVENING_ADHKAR_REMINDER] = eveningAdhkar
+            prefs[Keys.JUMUAH_KAHF_REMINDER] = jumuahKahf
         }
     }
 
@@ -358,6 +422,18 @@ class UserPreferencesRepository(private val dataStore: DataStore<Preferences>) {
         }
     }
 
+    suspend fun updateDailyGoalsAndHifzInterval(
+        dailyQuranAyahs: Int,
+        dailyHifzAyahs: Int,
+        hifzIntervalDays: Int
+    ) {
+        dataStore.edit { prefs ->
+            prefs[Keys.DAILY_QURAN_GOAL] = dailyQuranAyahs.coerceIn(1, 300)
+            prefs[Keys.DAILY_HIFZ_GOAL] = dailyHifzAyahs.coerceIn(1, 200)
+            prefs[Keys.HIFZ_REVIEW_INTERVAL_DAYS] = hifzIntervalDays.coerceIn(1, 90)
+        }
+    }
+
     suspend fun updateLastReadQuran(surahNumber: Int, surahName: String, ayahNumber: Int) {
         dataStore.edit { prefs ->
             prefs[Keys.LAST_SURAH_NUM] = surahNumber
@@ -371,6 +447,109 @@ class UserPreferencesRepository(private val dataStore: DataStore<Preferences>) {
             prefs[Keys.GOLD_PRICE_GRAM] = goldPerGram.coerceAtLeast(1.0)
             prefs[Keys.SILVER_PRICE_GRAM] = silverPerGram.coerceAtLeast(0.1)
             prefs[Keys.ZAKAT_CURRENCY] = currency.ifBlank { "৳" }
+        }
+    }
+
+    suspend fun exportPreferencesToJson(): JSONObject {
+        val state = preferencesFlow.first()
+        return JSONObject().apply {
+            put("languageCode", state.languageCode)
+            put("themePreference", state.themePreference.name)
+            put("colorTheme", state.colorTheme.name)
+            put("cityName", state.cityName)
+            put("countryName", state.countryName)
+            put("latitude", state.latitude)
+            put("longitude", state.longitude)
+            put("timeZoneId", state.timeZoneId)
+            put("isManualCoordinates", state.isManualCoordinates)
+            put("calculationMethod", state.calculationMethod.name)
+            put("asrSchool", state.asrSchool.name)
+            put("providerMode", state.providerMode.name)
+            put("fajrOffsetMin", state.fajrOffsetMin)
+            put("sunriseOffsetMin", state.sunriseOffsetMin)
+            put("dhuhrOffsetMin", state.dhuhrOffsetMin)
+            put("asrOffsetMin", state.asrOffsetMin)
+            put("maghribOffsetMin", state.maghribOffsetMin)
+            put("ishaOffsetMin", state.ishaOffsetMin)
+            put("imsakOffsetMin", state.imsakOffsetMin)
+            put("showMosqueJamaah", state.showMosqueJamaah)
+            put("fajrJamaahOffsetMin", state.fajrJamaahOffsetMin)
+            put("dhuhrJamaahOffsetMin", state.dhuhrJamaahOffsetMin)
+            put("asrJamaahOffsetMin", state.asrJamaahOffsetMin)
+            put("maghribJamaahOffsetMin", state.maghribJamaahOffsetMin)
+            put("ishaJamaahOffsetMin", state.ishaJamaahOffsetMin)
+            put("notifyFajr", state.notifyFajr)
+            put("notifyDhuhr", state.notifyDhuhr)
+            put("notifyAsr", state.notifyAsr)
+            put("notifyMaghrib", state.notifyMaghrib)
+            put("notifyIsha", state.notifyIsha)
+            put("advanceReminderMinutes", state.advanceReminderMinutes)
+            put("notificationSoundMode", state.notificationSoundMode.name)
+            put("morningAdhkarReminderEnabled", state.morningAdhkarReminderEnabled)
+            put("eveningAdhkarReminderEnabled", state.eveningAdhkarReminderEnabled)
+            put("jumuahKahfReminderEnabled", state.jumuahKahfReminderEnabled)
+            put("hijriAdjustmentDays", state.hijriAdjustmentDays)
+            put("quranArabicFontSizeSp", state.quranArabicFontSizeSp.toDouble())
+            put("quranTranslationFontSizeSp", state.quranTranslationFontSizeSp.toDouble())
+            put("showBengaliTranslation", state.showBengaliTranslation)
+            put("showEnglishTranslation", state.showEnglishTranslation)
+            put("dailyQuranGoalAyahs", state.dailyQuranGoalAyahs)
+            put("dailyHifzRevisionGoalAyahs", state.dailyHifzRevisionGoalAyahs)
+            put("hifzReviewIntervalDays", state.hifzReviewIntervalDays)
+            put("goldPricePerGram", state.goldPricePerGram)
+            put("silverPricePerGram", state.silverPricePerGram)
+            put("zakatCurrencySymbol", state.zakatCurrencySymbol)
+        }
+    }
+
+    suspend fun importPreferencesFromJson(obj: JSONObject) {
+        dataStore.edit { prefs ->
+            obj.optString("languageCode").takeIf { it == "en" || it == "bn" }?.let { prefs[Keys.LANGUAGE_CODE] = it }
+            runCatching { ThemePreference.valueOf(obj.optString("themePreference")) }.getOrNull()?.let { prefs[Keys.THEME_PREF] = it.name }
+            runCatching { IslamicColorTheme.valueOf(obj.optString("colorTheme")) }.getOrNull()?.let { prefs[Keys.COLOR_THEME] = it.name }
+            obj.optString("cityName").takeIf { it.isNotBlank() }?.let { prefs[Keys.CITY_NAME] = it }
+            obj.optString("countryName").takeIf { it.isNotBlank() }?.let { prefs[Keys.COUNTRY_NAME] = it }
+            if (obj.has("latitude")) prefs[Keys.LATITUDE] = obj.optDouble("latitude", 23.8103).coerceIn(-90.0, 90.0)
+            if (obj.has("longitude")) prefs[Keys.LONGITUDE] = obj.optDouble("longitude", 90.4125).coerceIn(-180.0, 180.0)
+            obj.optString("timeZoneId").takeIf { it.isNotBlank() }?.let { prefs[Keys.TIME_ZONE_ID] = it }
+            if (obj.has("isManualCoordinates")) prefs[Keys.IS_MANUAL_COORDS] = obj.optBoolean("isManualCoordinates")
+            runCatching { CalculationMethodOption.valueOf(obj.optString("calculationMethod")) }.getOrNull()?.let { prefs[Keys.CALC_METHOD] = it.name }
+            runCatching { AsrJuristicSchool.valueOf(obj.optString("asrSchool")) }.getOrNull()?.let { prefs[Keys.ASR_SCHOOL] = it.name }
+            runCatching { PrayerProviderMode.valueOf(obj.optString("providerMode")) }.getOrNull()?.let { prefs[Keys.PROVIDER_MODE] = it.name }
+            if (obj.has("fajrOffsetMin")) prefs[Keys.FAJR_OFFSET] = obj.optInt("fajrOffsetMin", 0).coerceIn(-60, 60)
+            if (obj.has("sunriseOffsetMin")) prefs[Keys.SUNRISE_OFFSET] = obj.optInt("sunriseOffsetMin", 0).coerceIn(-60, 60)
+            if (obj.has("dhuhrOffsetMin")) prefs[Keys.DHUHR_OFFSET] = obj.optInt("dhuhrOffsetMin", 0).coerceIn(-60, 60)
+            if (obj.has("asrOffsetMin")) prefs[Keys.ASR_OFFSET] = obj.optInt("asrOffsetMin", 0).coerceIn(-60, 60)
+            if (obj.has("maghribOffsetMin")) prefs[Keys.MAGHRIB_OFFSET] = obj.optInt("maghribOffsetMin", 0).coerceIn(-60, 60)
+            if (obj.has("ishaOffsetMin")) prefs[Keys.ISHA_OFFSET] = obj.optInt("ishaOffsetMin", 0).coerceIn(-60, 60)
+            if (obj.has("imsakOffsetMin")) prefs[Keys.IMSAK_OFFSET] = obj.optInt("imsakOffsetMin", -10).coerceIn(-60, 0)
+            if (obj.has("showMosqueJamaah")) prefs[Keys.SHOW_MOSQUE_JAMAAH] = obj.optBoolean("showMosqueJamaah", true)
+            if (obj.has("fajrJamaahOffsetMin")) prefs[Keys.FAJR_JAMAAH_OFFSET] = obj.optInt("fajrJamaahOffsetMin", 20).coerceIn(0, 90)
+            if (obj.has("dhuhrJamaahOffsetMin")) prefs[Keys.DHUHR_JAMAAH_OFFSET] = obj.optInt("dhuhrJamaahOffsetMin", 15).coerceIn(0, 90)
+            if (obj.has("asrJamaahOffsetMin")) prefs[Keys.ASR_JAMAAH_OFFSET] = obj.optInt("asrJamaahOffsetMin", 15).coerceIn(0, 90)
+            if (obj.has("maghribJamaahOffsetMin")) prefs[Keys.MAGHRIB_JAMAAH_OFFSET] = obj.optInt("maghribJamaahOffsetMin", 5).coerceIn(0, 60)
+            if (obj.has("ishaJamaahOffsetMin")) prefs[Keys.ISHA_JAMAAH_OFFSET] = obj.optInt("ishaJamaahOffsetMin", 15).coerceIn(0, 90)
+            if (obj.has("notifyFajr")) prefs[Keys.NOTIFY_FAJR] = obj.optBoolean("notifyFajr", true)
+            if (obj.has("notifyDhuhr")) prefs[Keys.NOTIFY_DHUHR] = obj.optBoolean("notifyDhuhr", true)
+            if (obj.has("notifyAsr")) prefs[Keys.NOTIFY_ASR] = obj.optBoolean("notifyAsr", true)
+            if (obj.has("notifyMaghrib")) prefs[Keys.NOTIFY_MAGHRIB] = obj.optBoolean("notifyMaghrib", true)
+            if (obj.has("notifyIsha")) prefs[Keys.NOTIFY_ISHA] = obj.optBoolean("notifyIsha", true)
+            if (obj.has("advanceReminderMinutes")) prefs[Keys.ADVANCE_REMINDER_MIN] = obj.optInt("advanceReminderMinutes", 0).coerceIn(0, 60)
+            runCatching { NotificationSoundMode.valueOf(obj.optString("notificationSoundMode")) }.getOrNull()?.let { prefs[Keys.SOUND_MODE] = it.name }
+            if (obj.has("morningAdhkarReminderEnabled")) prefs[Keys.MORNING_ADHKAR_REMINDER] = obj.optBoolean("morningAdhkarReminderEnabled", false)
+            if (obj.has("eveningAdhkarReminderEnabled")) prefs[Keys.EVENING_ADHKAR_REMINDER] = obj.optBoolean("eveningAdhkarReminderEnabled", false)
+            if (obj.has("jumuahKahfReminderEnabled")) prefs[Keys.JUMUAH_KAHF_REMINDER] = obj.optBoolean("jumuahKahfReminderEnabled", true)
+            if (obj.has("hijriAdjustmentDays")) prefs[Keys.HIJRI_ADJUST] = obj.optInt("hijriAdjustmentDays", 0).coerceIn(-3, 3)
+            if (obj.has("quranArabicFontSizeSp")) prefs[Keys.QURAN_ARABIC_SIZE] = obj.optDouble("quranArabicFontSizeSp", 28.0).toFloat().coerceIn(20f, 44f)
+            if (obj.has("quranTranslationFontSizeSp")) prefs[Keys.QURAN_TRANS_SIZE] = obj.optDouble("quranTranslationFontSizeSp", 16.0).toFloat().coerceIn(13f, 26f)
+            if (obj.has("showBengaliTranslation")) prefs[Keys.SHOW_BN_TRANS] = obj.optBoolean("showBengaliTranslation", true)
+            if (obj.has("showEnglishTranslation")) prefs[Keys.SHOW_EN_TRANS] = obj.optBoolean("showEnglishTranslation", true)
+            if (obj.has("dailyQuranGoalAyahs")) prefs[Keys.DAILY_QURAN_GOAL] = obj.optInt("dailyQuranGoalAyahs", 20).coerceIn(1, 300)
+            if (obj.has("dailyHifzRevisionGoalAyahs")) prefs[Keys.DAILY_HIFZ_GOAL] = obj.optInt("dailyHifzRevisionGoalAyahs", 10).coerceIn(1, 200)
+            if (obj.has("hifzReviewIntervalDays")) prefs[Keys.HIFZ_REVIEW_INTERVAL_DAYS] = obj.optInt("hifzReviewIntervalDays", 7).coerceIn(1, 90)
+            if (obj.has("goldPricePerGram")) prefs[Keys.GOLD_PRICE_GRAM] = obj.optDouble("goldPricePerGram", 11500.0).coerceAtLeast(1.0)
+            if (obj.has("silverPricePerGram")) prefs[Keys.SILVER_PRICE_GRAM] = obj.optDouble("silverPricePerGram", 145.0).coerceAtLeast(0.1)
+            obj.optString("zakatCurrencySymbol").takeIf { it.isNotBlank() }?.let { prefs[Keys.ZAKAT_CURRENCY] = it }
         }
     }
 }

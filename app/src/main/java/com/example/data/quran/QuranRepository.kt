@@ -36,6 +36,11 @@ data class QuranAudioPlaybackState(
     val currentAyahNumber: Int = 1,
     val totalAyahsInSurah: Int = 7,
     val continuousSurahPlayback: Boolean = true,
+    val repeatCountPerAyah: Int = 1, // 1 = 1x, 3 = 3x, 5 = 5x, 0 = Infinite
+    val currentRepeatIteration: Int = 1,
+    val rangeStartAyah: Int = 1,
+    val rangeEndAyah: Int = 7,
+    val isRangeLoopEnabled: Boolean = false,
     val reciterLabel: String = "Mishary Rashid Alafasy (128kbps)",
     val errorMessage: String? = null
 )
@@ -219,23 +224,45 @@ class QuranRepository(
         if (audioDir.exists()) audioDir.deleteRecursively()
     }
 
-    // --- Quran Audio Recitation Controls ---
+    // --- Quran Audio Recitation, Repeat & Range Loop Controls ---
+    fun setAudioRepeatAndRange(
+        repeatCountPerAyah: Int = _audioState.value.repeatCountPerAyah,
+        rangeStartAyah: Int = _audioState.value.rangeStartAyah,
+        rangeEndAyah: Int = _audioState.value.rangeEndAyah,
+        isRangeLoopEnabled: Boolean = _audioState.value.isRangeLoopEnabled
+    ) {
+        val safeStart = rangeStartAyah.coerceAtLeast(1)
+        val safeEnd = rangeEndAyah.coerceAtLeast(safeStart)
+        _audioState.value = _audioState.value.copy(
+            repeatCountPerAyah = repeatCountPerAyah.coerceIn(0, 20),
+            rangeStartAyah = safeStart,
+            rangeEndAyah = safeEnd,
+            isRangeLoopEnabled = isRangeLoopEnabled
+        )
+    }
+
     fun playAyahAudio(
         ayahsInSurah: List<CachedAyahEntity>,
         startIndex: Int,
-        continuousSurah: Boolean = true
+        continuousSurah: Boolean = true,
+        repeatIteration: Int = 1
     ) {
         if (ayahsInSurah.isEmpty() || startIndex !in ayahsInSurah.indices) return
         val targetAyah = ayahsInSurah[startIndex]
+        val prev = _audioState.value
+        val sameSurah = prev.currentSurahNumber == targetAyah.surahNumber
 
         releasePlayer()
-        _audioState.value = QuranAudioPlaybackState(
+        _audioState.value = prev.copy(
             isPlaying = false,
             isPreparing = true,
             currentSurahNumber = targetAyah.surahNumber,
             currentAyahNumber = targetAyah.ayahNumberInSurah,
             totalAyahsInSurah = ayahsInSurah.size,
             continuousSurahPlayback = continuousSurah,
+            currentRepeatIteration = repeatIteration,
+            rangeStartAyah = if (sameSurah) prev.rangeStartAyah.coerceIn(1, ayahsInSurah.size) else 1,
+            rangeEndAyah = if (sameSurah) prev.rangeEndAyah.coerceIn(1, ayahsInSurah.size) else ayahsInSurah.size,
             errorMessage = null
         )
 
@@ -254,8 +281,42 @@ class QuranRepository(
                     _audioState.value = _audioState.value.copy(isPlaying = true, isPreparing = false)
                 }
                 setOnCompletionListener {
-                    if (continuousSurah && startIndex + 1 < ayahsInSurah.size) {
-                        playAyahAudio(ayahsInSurah, startIndex + 1, continuousSurah = true)
+                    val stateNow = _audioState.value
+                    val maxRepeats = stateNow.repeatCountPerAyah // 0 = Infinite
+                    if (maxRepeats == 0 || stateNow.currentRepeatIteration < maxRepeats) {
+                        playAyahAudio(
+                            ayahsInSurah = ayahsInSurah,
+                            startIndex = startIndex,
+                            continuousSurah = stateNow.continuousSurahPlayback,
+                            repeatIteration = stateNow.currentRepeatIteration + 1
+                        )
+                    } else if (stateNow.isRangeLoopEnabled) {
+                        val nextIdx = startIndex + 1
+                        val nextAyahNum = ayahsInSurah.getOrNull(nextIdx)?.ayahNumberInSurah
+                        if (nextAyahNum != null && nextAyahNum <= stateNow.rangeEndAyah) {
+                            playAyahAudio(
+                                ayahsInSurah = ayahsInSurah,
+                                startIndex = nextIdx,
+                                continuousSurah = true,
+                                repeatIteration = 1
+                            )
+                        } else {
+                            val loopStartIdx = ayahsInSurah.indexOfFirst { it.ayahNumberInSurah == stateNow.rangeStartAyah }
+                                .takeIf { it >= 0 } ?: 0
+                            playAyahAudio(
+                                ayahsInSurah = ayahsInSurah,
+                                startIndex = loopStartIdx,
+                                continuousSurah = true,
+                                repeatIteration = 1
+                            )
+                        }
+                    } else if (stateNow.continuousSurahPlayback && startIndex + 1 < ayahsInSurah.size) {
+                        playAyahAudio(
+                            ayahsInSurah = ayahsInSurah,
+                            startIndex = startIndex + 1,
+                            continuousSurah = true,
+                            repeatIteration = 1
+                        )
                     } else {
                         _audioState.value = _audioState.value.copy(isPlaying = false, isPreparing = false)
                     }

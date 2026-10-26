@@ -4,6 +4,7 @@ import com.example.core.preferences.AsrJuristicSchool
 import com.example.core.preferences.CalculationMethodOption
 import com.example.core.preferences.PRESET_CITIES
 import com.example.core.preferences.UserPreferencesState
+import com.example.data.hadith.VerifiedIslamicContent
 import com.example.domain.prayer.DailyPrayerType
 import com.example.domain.prayer.LocalAdhanCalculator
 import com.example.domain.qibla.NisabStandard
@@ -12,6 +13,7 @@ import com.example.domain.qibla.ZakatCalculatorEngine
 import com.example.domain.qibla.ZakatInputModel
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -74,7 +76,6 @@ class ExampleUnitTest {
         val hanAsr = hanSched.prayerTimeFor(DailyPrayerType.ASR)!!.timeMillis
         assertTrue("Hanafi Asr must be later than Standard Asr", hanAsr > stdAsr)
 
-        // Fajr and Maghrib must be identical when only Asr school changes
         assertEquals(
             stdSched.prayerTimeFor(DailyPrayerType.FAJR)!!.timeMillis,
             hanSched.prayerTimeFor(DailyPrayerType.FAJR)!!.timeMillis
@@ -106,19 +107,63 @@ class ExampleUnitTest {
     }
 
     @Test
-    fun `countdown wraps around to next day fajr after isha`() {
+    fun `mosque jamaah time is computed separately from solar waqt and imsak`() {
         val tz = TimeZone.getTimeZone("Asia/Dhaka")
-        val cal = Calendar.getInstance(tz).apply { set(2026, Calendar.OCTOBER, 24, 22, 30, 0) }
-        val prefs = UserPreferencesState()
-        val schedule = LocalAdhanCalculator.calculateLocalSchedule(prefs, cal)
+        val cal = Calendar.getInstance(tz).apply { set(2026, Calendar.OCTOBER, 24, 9, 0, 0) }
 
-        val postIshaNow = schedule.prayerTimeFor(DailyPrayerType.ISHA)!!.timeMillis + 30 * 60_000L
-        val status = LocalAdhanCalculator.computeNextPrayerStatus(schedule, prefs, postIshaNow)
+        val prefs = UserPreferencesState(
+            showMosqueJamaah = true,
+            fajrJamaahOffsetMin = 25,
+            dhuhrJamaahOffsetMin = 75,
+            asrJamaahOffsetMin = 20,
+            maghribJamaahOffsetMin = 10,
+            ishaJamaahOffsetMin = 30
+        )
+
+        val schedule = LocalAdhanCalculator.calculateLocalSchedule(prefs, cal)
+        val fajrEntry = schedule.prayerTimeFor(DailyPrayerType.FAJR)!!
+        val sunriseEntry = schedule.prayerTimeFor(DailyPrayerType.SUNRISE)!!
+
+        assertEquals(25, fajrEntry.jamaahOffsetMinutes)
+        assertTrue(fajrEntry.jamaahFormatted12h.isNotBlank())
+        assertNotEquals(fajrEntry.formatted12h, fajrEntry.jamaahFormatted12h)
+        // Sunrise has no Jama'ah congregation time
+        assertEquals(0, sunriseEntry.jamaahOffsetMinutes)
+        assertEquals("", sunriseEntry.jamaahFormatted12h)
+        // Imsak is strictly 10 minutes before Fajr solar Waqt
+        assertNotEquals(schedule.imsakFormatted, fajrEntry.formatted12h)
+    }
+
+    @Test
+    fun `countdown wraps around to next day fajr after isha and across midnight rollover`() {
+        val tz = TimeZone.getTimeZone("Asia/Dhaka")
+        val day1Cal = Calendar.getInstance(tz).apply { set(2026, Calendar.OCTOBER, 24, 22, 30, 0) }
+        val prefs = UserPreferencesState()
+        val staleSchedule = LocalAdhanCalculator.calculateLocalSchedule(prefs, day1Cal)
+
+        val postIshaNow = staleSchedule.prayerTimeFor(DailyPrayerType.ISHA)!!.timeMillis + 30 * 60_000L
+        val status = LocalAdhanCalculator.computeNextPrayerStatus(staleSchedule, prefs, postIshaNow)
 
         assertEquals(DailyPrayerType.ISHA, status.currentPrayer)
         assertEquals(DailyPrayerType.FAJR, status.nextPrayer)
         assertTrue(status.nextPrayerMillis > postIshaNow)
         assertTrue(status.formattedCountdown.matches(Regex("\\d{2}:\\d{2}:\\d{2}")))
+
+        // Simulate 00:15 AM on Day 2 (2026-10-25) while holding staleSchedule from Day 1 (2026-10-24)
+        val afterMidnightCal = Calendar.getInstance(tz).apply {
+            set(2026, Calendar.OCTOBER, 25, 0, 15, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        val afterMidnightStatus = LocalAdhanCalculator.computeNextPrayerStatus(
+            todaySchedule = staleSchedule,
+            prefs = prefs,
+            nowMillis = afterMidnightCal.timeInMillis
+        )
+        assertEquals(DailyPrayerType.FAJR, afterMidnightStatus.nextPrayer)
+        assertTrue(
+            "Next prayer after midnight must be in the future on Day 2",
+            afterMidnightStatus.nextPrayerMillis > afterMidnightCal.timeInMillis
+        )
     }
 
     @Test
@@ -133,17 +178,15 @@ class ExampleUnitTest {
     fun `zakat calculator computes nisab threshold and 2_5 percent accurately`() {
         val aboveNisabInput = ZakatInputModel(
             cashOnHandAndBank = 200_000.0,
-            goldGrams24kEquivalent = 10.0, // 10 * 10,000 = 100,000
+            goldGrams24kEquivalent = 10.0,
             silverGrams = 0.0,
             tradeInventoryValue = 50_000.0,
             investmentAndReceivables = 0.0,
             deductibleDebtsAndLiabilities = 30_000.0,
             goldPricePerGram = 10_000.0,
             silverPricePerGram = 100.0,
-            nisabStandard = NisabStandard.SILVER_612G // 61,236 threshold
+            nisabStandard = NisabStandard.SILVER_612G
         )
-        // Net wealth = 200,000 + 100,000 + 50,000 - 30,000 = 320,000
-        // Zakat = 2.5% of 320,000 = 8,000
         val res = ZakatCalculatorEngine.calculate(aboveNisabInput)
         assertTrue(res.isZakatDue)
         assertEquals(320_000.0, res.netZakatableWealth, 0.01)
@@ -158,5 +201,17 @@ class ExampleUnitTest {
         val belowRes = ZakatCalculatorEngine.calculate(belowNisabInput)
         assertFalse(belowRes.isZakatDue)
         assertEquals(0.0, belowRes.totalZakatPayable, 0.01)
+    }
+
+    @Test
+    fun `offline quranic vocabulary flashcards include arabic bengali and english meanings`() {
+        val cards = VerifiedIslamicContent.QURANIC_VOCAB_FLASHCARDS
+        assertTrue(cards.size >= 15)
+        cards.forEach { card ->
+            assertTrue(card.arabicWord.isNotBlank())
+            assertTrue(card.meaningEn.isNotBlank())
+            assertTrue(card.meaningBn.isNotBlank())
+            assertTrue(card.quranReference.isNotBlank())
+        }
     }
 }
